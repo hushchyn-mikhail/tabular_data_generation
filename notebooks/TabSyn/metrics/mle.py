@@ -407,7 +407,7 @@ def compute_scores(train, test, synthesized_data, metadata, eval):
         return a.mean(axis=0), a.std(axis=0), a[['name','param']]
     else:
         return a.mean(axis=0), a.std(axis=0)
-def MLE(train_path, test_path, dataname):
+def MLE(train_path, test_path, dataname, model):
     train = pd.read_csv(train_path).to_numpy()
     test = pd.read_csv(test_path).to_numpy()
 
@@ -433,7 +433,7 @@ def MLE(train_path, test_path, dataname):
     if not os.path.exists(f'eval/mle/{dataname}'):
         os.makedirs(f'eval/mle/{dataname}')
 
-    save_path = f'eval/mle/{dataname}/model.json'
+    save_path = f'eval/mle/{dataname}/{model}.json'
     print('Saving scores to ', save_path)
     with open(save_path, "w") as json_file:
         json.dump(overall_scores, json_file, indent=4, separators=(", ", ": "))
