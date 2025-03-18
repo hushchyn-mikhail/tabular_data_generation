@@ -9,7 +9,7 @@ Original file is located at
 
 from dataclasses import astuple, dataclass, replace
 from typing import Any, Literal, Optional, Union, cast, Tuple, Dict, List
-from vae import Model_VAE, Encoder_model, Decoder_model
+from model_train.vae import Model_VAE, Encoder_model, Decoder_model
 import numpy as np
 import torch
 import enum
