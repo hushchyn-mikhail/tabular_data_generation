@@ -18,3 +18,6 @@ prdc
 rdt
 openpyxl
 xgboost
+tomli
+sdv
+kaleido
