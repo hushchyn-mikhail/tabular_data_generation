@@ -5,5 +5,5 @@
     "save_path": "synthetic/adult/tabddpm.csv",
     "mode": "train",
     "train": 1,
-    "sample_save_path": "./generated_samples/adult.csv"
+    "sample_save_path": "synthetic/adult/tabddpm.csv"
 }

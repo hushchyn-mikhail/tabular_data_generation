@@ -21,3 +21,11 @@ xgboost
 tomli
 sdv
 kaleido
+torchmetrics==1.7.0
+torchsummary==1.5.1
+torchtext==0.17.2
+torchtuples==0.2.2
+torchvision==0.17.2
+Click==7.0
+seaborn
+nbformat>=4.2.0

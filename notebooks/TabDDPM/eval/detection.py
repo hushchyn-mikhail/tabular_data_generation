@@ -25,10 +25,10 @@ def calculate_detection():
     dataname = CONFIG.get_arg('dataname')
     model = CONFIG.get_arg('method')
 
-    if not CONFIG.get_arg('sample_save_path'):
+    if not CONFIG.get_arg('save_path'):
         syn_path = f'synthetic/{dataname}/{model}.csv'
     else:
-        syn_path = CONFIG.get_arg('sample_save_path')
+        syn_path = CONFIG.get_arg('save_path')
     real_path = f'synthetic/{dataname}/real.csv'
 
     data_dir = f'data/{dataname}' 

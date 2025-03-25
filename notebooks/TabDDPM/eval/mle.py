@@ -445,10 +445,10 @@ def calculate_mle():
     dataname = CONFIG.get_arg('dataname')
     model = CONFIG.get_arg('method')
 
-    if not CONFIG.get_arg('sample_save_path'):
+    if not CONFIG.get_arg('save_path'):
         train_path = f'synthetic/{dataname}/{model}.csv'
     else:
-        train_path = CONFIG.get_arg('sample_save_path')
+        train_path = CONFIG.get_arg('save_path')
 
     test_path = f'synthetic/{dataname}/test.csv'
 
