@@ -24,8 +24,17 @@ def calculate_base_metrics(make_binary, value):
     else:
         syn_path = CONFIG.get_arg('save_path')
 
-    real_path = f'synthetic/{dataname}/real.csv'
-    test_path = f'synthetic/{dataname}/test.csv'
+    if not CONFIG.get_arg('real_path'):
+        real_path = f'synthetic/{dataname}/real.csv'
+    else:
+        real_path = CONFIG.get_arg('real_path')
+
+    if not CONFIG.get_arg('test_path'):
+        test_path = f'synthetic/{dataname}/test.csv'
+    else:
+        test_path = CONFIG.get_arg('test_path')
+    # real_path = f'synthetic/{dataname}/real.csv'
+    # test_path = f'synthetic/{dataname}/test.csv'
 
     data_dir = f'data/{dataname}' 
 
@@ -79,3 +88,12 @@ def calculate_base_metrics(make_binary, value):
     print(f"Tree: {results[dataname]['Accuracy Loss Tree']:.3f}%", '\n')
     
     pd.DataFrame(results).to_csv(f'{save_dir}/results.csv')
+
+    return {
+        "Original Logistic": results[dataname]['LR'],
+        "Synthetic Logistic": results[dataname]['Synth_LR'],
+        "Original Tree": results[dataname]['Tree'],
+        "Synthetic Tree": results[dataname]['Synth_Tree'],
+        "Accuracy Loss Logistic, %": results[dataname]['Accuracy Loss LR'],
+        "Accuracy Loss Tree, %": results[dataname]['Accuracy Loss Tree']
+    }

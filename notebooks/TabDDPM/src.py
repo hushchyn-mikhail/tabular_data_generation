@@ -1225,7 +1225,6 @@ def transform_dataset(
             return_normalizer=True
         )
         num_transform = num_transform
-    
     if dataset.X_cat is None:
         assert transformations.cat_nan_policy is None
         assert transformations.cat_min_frequency is None
@@ -1419,8 +1418,10 @@ def prepare_fast_dataloader(
     split : str,
     batch_size: int
 ):
-   
-    X = torch.from_numpy(np.concatenate([D.X_num[split], D.X_cat[split]], axis=1)).float()
+    if D.X_cat:
+        X = torch.from_numpy(np.concatenate([D.X_num[split], D.X_cat[split]], axis=1)).float()
+    else:
+        X = torch.from_numpy(np.concatenate([D.X_num[split]], axis=1)).float()
     dataloader = FastTensorDataLoader(X, batch_size=batch_size, shuffle=(split=='train'))
     while True:
         yield from dataloader

@@ -22,12 +22,23 @@ def calculate_DCR():
     else:
         syn_path = CONFIG.get_arg('save_path')
 
-    real_path = f'synthetic/{dataname}/real.csv'
-    test_path = f'synthetic/{dataname}/test.csv'
+    if not CONFIG.get_arg('real_path'):
+        real_path = f'synthetic/{dataname}/real.csv'
+    else:
+        real_path = CONFIG.get_arg('real_path')
+
+    if not CONFIG.get_arg('test_path'):
+        test_path = f'synthetic/{dataname}/test.csv'
+    else:
+        test_path = CONFIG.get_arg('test_path')
 
     data_dir = f'data/{dataname}' 
 
-    with open(f'{data_dir}/info.json', 'r') as f:
+    if not CONFIG.get_arg('info_path'):
+        info_path = f'{data_dir}/info.json'
+    else:
+        info_path = CONFIG.get_arg('info_path')
+    with open(info_path, 'r') as f:
         info = json.load(f)
 
     syn_data = pd.read_csv(syn_path)
@@ -116,3 +127,7 @@ def calculate_DCR():
     
     print('DCR Score, a value closer to 0.5 is better')
     print(f'{dataname}-{model}, DCR Score = {score}')
+
+    return {
+        "Score":score
+    }

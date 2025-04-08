@@ -450,12 +450,19 @@ def calculate_mle():
     else:
         train_path = CONFIG.get_arg('save_path')
 
-    test_path = f'synthetic/{dataname}/test.csv'
+    if not CONFIG.get_arg('test_path'):
+        test_path = f'synthetic/{dataname}/test.csv'
+    else:
+        test_path = CONFIG.get_arg('test_path')
 
     train = pd.read_csv(train_path).to_numpy()
     test = pd.read_csv(test_path).to_numpy()
 
-    with open(f'data/{dataname}/info.json', 'r') as f:
+    if not CONFIG.get_arg('info_path'):
+        info_path = f'data/{dataname}/info.json'
+    else:
+        info_path = CONFIG.get_arg('info_path')
+    with open(info_path, 'r') as f:
         info = json.load(f)
 
     task_type = info['task_type']
@@ -498,4 +505,7 @@ def calculate_mle():
 
     print(f"ROC - AUC обучения на синтетических данных {model.upper()}: {avg_roc_auc:.3f} ± {std_roc_auc:.3f}")
 
-        
+    return {
+        "ROC - AUC обучения на синтетических данных": avg_roc_auc,
+        "ROC - AUC обучения на синтетических данных, std": std_roc_auc
+    }

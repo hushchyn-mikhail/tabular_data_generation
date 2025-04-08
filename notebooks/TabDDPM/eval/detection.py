@@ -29,11 +29,18 @@ def calculate_detection():
         syn_path = f'synthetic/{dataname}/{model}.csv'
     else:
         syn_path = CONFIG.get_arg('save_path')
-    real_path = f'synthetic/{dataname}/real.csv'
+    if not CONFIG.get_arg('real_path'):
+        real_path = f'synthetic/{dataname}/real.csv'
+    else:
+        real_path = CONFIG.get_arg('real_path')
 
     data_dir = f'data/{dataname}' 
 
-    with open(f'{data_dir}/info.json', 'r') as f:
+    if not CONFIG.get_arg('info_path'):
+        info_path = f'{data_dir}/info.json'
+    else:
+        info_path = CONFIG.get_arg('info_path')
+    with open(info_path, 'r') as f:
         info = json.load(f)
 
     syn_data = pd.read_csv(syn_path)
@@ -60,3 +67,7 @@ def calculate_detection():
     )
 
     print(f'{dataname}, {model}: {score}')
+
+    return {
+        "Score": score
+    }

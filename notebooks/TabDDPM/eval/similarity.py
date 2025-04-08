@@ -27,11 +27,18 @@ def calculate_similarity():
     else:
         syn_path = CONFIG.get_arg('save_path')
 
-    real_path = f'synthetic/{dataname}/real.csv'
+    if not CONFIG.get_arg('real_path'):
+        real_path = f'synthetic/{dataname}/real.csv'
+    else:
+        real_path = CONFIG.get_arg('real_path')
 
     data_dir = f'data/{dataname}' 
 
-    with open(f'{data_dir}/info.json', 'r') as f:
+    if not CONFIG.get_arg('info_path'):
+        info_path = f'{data_dir}/info.json'
+    else:
+        info_path = CONFIG.get_arg('info_path')
+    with open(info_path, 'r') as f:
         info = json.load(f)
 
     syn_data = pd.read_csv(syn_path)
@@ -116,5 +123,15 @@ def calculate_similarity():
       )
 
       fig.show()
-      fig.write_image(f"{save_dir}/distribution-of-{info['idx_name_mapping'][str(num_idx_init)]}.png")
+      fig.write_image(f"{save_dir}/distribution-of-{info['idx_name_mapping'][str(cat_idx_init)]}.png")
     print('DONE!')
+
+    return {
+        "Column Shapes Score, %": Shape*100,
+        "Column Pair Trends Score, %": Trend*100, 
+        "Overall Score (Average), %": (Shape+Trend)*100/2,
+        "Error rate (%) of column-wise density estimation, %":(1 - shapes['Score'].mean())*100,
+        "Error rate (%) of column-wise density estimation std, %":shapes['Score'].std()*100,
+        "Error rate (%) of pair-wise column correlation score, %":(1 - trends['Score'].mean())*100,
+        "Error rate (%) of pair-wise column correlation score std, %":trends['Score'].std()*100,
+    }

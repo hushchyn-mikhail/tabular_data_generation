@@ -10,6 +10,7 @@ import argparse
 from torch.utils.data import Dataset
 
 import src
+from pprint import pprint
 
 DATA_DIR = 'data'
 NAME_URL_DICT_UCI = {
@@ -65,10 +66,12 @@ def unzip_file(zip_filepath, dest_path):
         zip_ref.extractall(dest_path)
 
 
-def download_from_uci(name):
-
+def download_from_uci(name, name_to_save=None):
     print(f'Start processing dataset {name} from UCI.')
-    save_dir = f'{DATA_DIR}/{name}'
+    if not name_to_save:
+        name_to_save = name
+    save_dir = f'{DATA_DIR}/{name_to_save}'
+    
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -82,8 +85,8 @@ def download_from_uci(name):
     else:
         print('Aready downloaded.')
 
-def download_dataset(name):
-    download_from_uci(name)
+def download_dataset(name, name_to_save=None):
+    download_from_uci(name, name_to_save)
     
 # PROCESS DATASET
 INFO_PATH = 'data/Info'
@@ -274,11 +277,15 @@ def process_data(name):
  
     save_dir = f'data/{name}'
     np.save(f'{save_dir}/X_num_train.npy', X_num_train)
-    np.save(f'{save_dir}/X_cat_train.npy', X_cat_train)
+    if X_cat_train:
+        np.save(f'{save_dir}/X_cat_train.npy', X_cat_train)
+        print("X_cat_train have not been saved. No data.")
     np.save(f'{save_dir}/y_train.npy', y_train)
 
     np.save(f'{save_dir}/X_num_test.npy', X_num_test)
-    np.save(f'{save_dir}/X_cat_test.npy', X_cat_test)
+    if X_cat_test:
+        np.save(f'{save_dir}/X_cat_test.npy', X_cat_test)
+        print("X_cat_test have not been saved. No data.")
     np.save(f'{save_dir}/y_test.npy', y_test)
 
     train_df[num_columns] = train_df[num_columns].astype(np.float32)
@@ -352,6 +359,173 @@ def process_data(name):
         num = len(info['num_col_idx'])
     print('Num', num)
     print('Cat', cat)
+
+def categorial_to_OHE(name):
+    with open(f'{INFO_PATH}/{name}.json', 'r') as f:
+        info = json.load(f)
+    
+    save_dir = f'data/{name}'
+    
+    if info['test_path']:
+        # if testing data is given
+        test_path = info['test_path']
+    
+        with open(test_path, 'r') as f:
+            lines = f.readlines()[1:]
+            test_save_path = f'data/{name}/test.data'
+            if not os.path.exists(test_save_path):
+                with open(test_save_path, 'a') as f1:     
+                    for line in lines:
+                        save_line = line.strip('\n').strip('.')
+                        f1.write(f'{save_line}\n')
+    
+    info['column_names_initial'] = [*np.array(info['column_names'])[info['num_col_idx']], 
+                                *np.array(info['column_names'])[info['cat_col_idx']],
+                                *np.array(info['column_names'])[info['target_col_idx']]].copy()
+    
+    info['num_col_idx_initial'] = list(range(len(info['num_col_idx'])))
+    info['cat_col_idx_initial'] = list(range(len(info['num_col_idx']), 
+                                                 len(info['num_col_idx']) + len(info['cat_col_idx'])))
+    info['target_col_idx_initial'] = list(range(len(info['num_col_idx']) + len(info['cat_col_idx']), 
+                                                    len(info['num_col_idx']) + len(info['cat_col_idx']) + len(info['target_col_idx'])))
+    
+    train_tmp = pd.read_csv(info['data_path'], header = None)
+    test_tmp = pd.read_csv(test_save_path, header = None)
+    tmp = pd.concat([train_tmp, test_tmp])
+    
+    real_num_data = tmp[info['num_col_idx']]
+    real_cat_data = tmp[info['cat_col_idx']]
+    real_target_data = tmp[info['target_col_idx']]
+    
+    concat_tmp = pd.concat([real_num_data,
+                 real_cat_data, 
+                 real_target_data], axis=1)
+    concat_tmp.columns = list(range(concat_tmp.shape[1]))
+    
+    if not os.path.exists(f'synthetic/{name}'):
+        os.makedirs(f'synthetic/{name}')
+        
+    concat_tmp.iloc[:len(train_tmp)].to_csv(f'synthetic/{name}/initial_real.csv', 
+                                                                         index = False, 
+                                                                         header=info['column_names_initial'])
+    concat_tmp.iloc[-len(test_tmp):].to_csv(f'synthetic/{name}/initial_test.csv', 
+                                                                         index = False, 
+                                                                         header=info['column_names_initial'])
+    
+    ohe_cat_data = pd.get_dummies(real_cat_data).astype(int)
+    ohe_target_data = pd.get_dummies(real_target_data).astype(int)
+    len_cat_prev = ohe_cat_data.shape[1]
+    len_target_prev = ohe_target_data.shape[1] - 1
+    
+    tmp = pd.concat([real_num_data, 
+                 ohe_cat_data, 
+                 ohe_target_data], axis=1)
+    info['initial_column_names'] = list(tmp.columns)
+    tmp = tmp.drop(columns=tmp.columns[-1])
+
+    info['column_names'] = list([str(col) for col in tmp.columns])
+    info['column_info'] = {}
+    for col in info['column_names']:
+        info['column_info'][col] = 'float'
+    
+    tmp.columns = list(range(tmp.shape[1]))
+    
+    info['target_col_idx'] = list(tmp.columns[-1:])
+    info['num_col_idx'] = list(tmp.columns[:-1])
+    info['cat_col_idx'] = []
+    info['prev_cat_num'] = len_cat_prev + len_target_prev
+    
+    tmp.iloc[:len(train_tmp)].to_csv(info['data_path'], index=False, header=None)
+    tmp.iloc[-len(test_tmp):].to_csv(test_save_path, index=False, header=None)
+    info['done_ohe_noise'] = 'yes'
+    
+    info['task_type'] = 'regression'
+
+
+    pprint(info)
+    
+    with open(f'{INFO_PATH}/{name}.json', 'w', encoding='utf-8') as f:
+        json.dump(info, f, ensure_ascii=False, indent=4)
+    
+    print("DONE CONVERTING DATA!")
+
+def postprocess_OHE(name, name_copy):
+    with open(f'./data/{name}/info.json', 'r') as f:
+        info = json.load(f)
+    
+    with open(f'./data/{name_copy}/info.json', 'r') as f:
+        info_copy = json.load(f)
+    
+    initial_info = info.copy()
+    
+    initial_info['task_type'] = 'binclass'
+    initial_info['column_names'] = info['column_names_initial']
+    initial_info['num_col_idx'] = info['num_col_idx_initial']
+    initial_info['cat_col_idx'] = info['cat_col_idx_initial']
+    initial_info['target_col_idx'] = info['target_col_idx_initial']
+    initial_info['idx_name_mapping'] = dict(zip(range(15), info['column_names_initial']))
+    
+    initial_info['metadata']['columns'] = {}
+    for i in initial_info['num_col_idx']:
+        initial_info['metadata']['columns'][str(i)] = {'sdtype': 'numerical', 'computer_representation': 'Float'}
+    for i in initial_info['cat_col_idx']:
+        initial_info['metadata']['columns'][str(i)] = {'sdtype': 'categorical'}
+    for i in initial_info['target_col_idx']:
+        initial_info['metadata']['columns'][str(i)] = {'sdtype': 'categorical'}
+    
+    initial_info['column_info'] = info_copy['column_info']
+    initial_info['idx_mapping'] = {str(i):i for i in list(range(len(initial_info['column_names'])))}
+    initial_info['inverse_idx_mapping'] = {str(i):i for i in list(range(len(initial_info['column_names'])))}
+    
+    keys = list(initial_info.keys())
+    for key in keys:
+        if not info_copy.get(key):
+            initial_info.pop(key)
+    
+    with open(f'./data/{name}/initial_info.json', 'w', encoding='utf-8') as f:
+        json.dump(initial_info, f, ensure_ascii=False, indent=4)
+    print("NEW FILE CREATED")
+
+def postsample_OHE(dataname, path_to_save):
+    sample = pd.read_csv(CONFIG.get_arg('sample_save_path'))
+
+    initial_sample = pd.DataFrame()
+    
+    real_data_path = f'data/{dataname}'
+    initial_info_path = f'{real_data_path}/initial_info.json'
+    info_path = f'{real_data_path}/info.json'
+    
+    with open(initial_info_path, 'r') as f:
+        initial_info = json.load(f)
+    with open(info_path, 'r') as f:
+        info = json.load(f)
+    
+    initial_num_col = [col for col in sample.columns if '_' not in col]
+    initial_sample = pd.concat([initial_sample, sample[initial_num_col]])
+    sample = sample.drop(columns=initial_num_col)
+    
+    for i in range(1, len(initial_info['column_names']) - 1): # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
+        cols = [col for col in sample.columns if f'{i}_' == col[:len(str(i))+1]]
+        if cols:
+            result = sample[cols].idxmax(axis=1)
+            result = result.apply(lambda x: x.replace(f'{i}_', ''))
+            initial_sample = pd.concat([initial_sample, result], axis=1)
+            sample = sample.drop(columns=cols)
+    
+    sample[sample.shape[1]] = 1 - sample.sum(axis=1)
+    sample.columns = info['initial_column_names'][-2:] # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
+    for i in range(1, len(initial_info['column_names'])):
+        cols = [col for col in sample.columns if f'{i}_' == col[:len(str(i))+1]]
+        if cols:
+            result = sample[cols].idxmax(axis=1)
+            result = result.apply(lambda x: x.replace(f'{i}_', ''))
+            initial_sample = pd.concat([initial_sample, result], axis=1)
+    initial_sample.columns = initial_info['column_names']
+    initial_sample.to_csv(path_to_save, index = False)
+    
+    CONFIG.add_arg('sample_save_path', path_to_save)
+    CONFIG.add_arg('save_path', path_to_save)
+    print(f"Sample path changed to {path_to_save}")
 
 # UTILS TRAIN
 class TabularDataset(Dataset):
@@ -543,3 +717,8 @@ def reorder(real_data, syn_data, info):
     
 
     return new_real_data, new_syn_data, metadata
+
+# SIGMA SCHEDULER
+def sigma_scheduller(name, value):
+    if name == 'constant':
+        return value
