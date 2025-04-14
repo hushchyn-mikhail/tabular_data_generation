@@ -17,14 +17,14 @@ import numpy as np
 import os
 
 from model_train.train_tabsyn import MLPDiffusion, Model
-from model_train.train_vae import Decoder_model
+from model_train.train_vae_fully_conn import Decoder_model
 from transform_data import preprocess
-def get_input_generate(dataname):
+def get_input_generate(dataname, model):
     # dataname = args.dataname
 
     curr_dir = 'tabsyn'#os.path.dirname(os.path.abspath(__file__))
     dataset_dir = f'data/{dataname}'
-    ckpt_dir = f'model'
+    ckpt_dir = f'{model}/{dataname}'
 
     with open(f'{dataset_dir}/info.json', 'r') as f:
         info = json.load(f)
@@ -36,7 +36,7 @@ def get_input_generate(dataname):
 
     _, _, categories, d_numerical, num_inverse, cat_inverse = preprocess(dataset_dir, task_type = task_type, inverse = True)
 
-    embedding_save_path = 'model/train_z.npy'#f'{curr_dir}/vae/ckpt/{dataname}/train_z.npy'
+    embedding_save_path = f'{ckpt_dir}/train_z.npy'#f'{curr_dir}/vae/ckpt/{dataname}/train_z.npy'
     train_z = torch.tensor(np.load(embedding_save_path)).float()
 
     train_z = train_z[:, 1:, :]
@@ -47,7 +47,7 @@ def get_input_generate(dataname):
     train_z = train_z.view(B, in_dim)
     pre_decoder = Decoder_model(2, d_numerical, categories, 4, n_head = 1, factor = 32)
 
-    decoder_save_path = 'model/decoder.pt'#f'{curr_dir}/vae/ckpt/{dataname}/decoder.pt'
+    decoder_save_path = f'{ckpt_dir}/decoder.pt'#f'{curr_dir}/vae/ckpt/{dataname}/decoder.pt'
     pre_decoder.load_state_dict(torch.load(decoder_save_path))
 
     info['pre_decoder'] = pre_decoder
@@ -182,13 +182,14 @@ def sample(net, num_samples, dim, num_steps = 50, device = 'cuda:0'):
 
     return x_next
 
-def sample_main(dataname = 'adult', device = 'cuda', steps = None):
+def sample_main(dataname = 'adult', model = 'model', device = 'cuda', steps = None):
     # dataname = args.dataname
     # device = args.device
     # steps = args.steps
-    save_path = f'synthetic/{dataname}/synthetic.csv'
-
-    train_z, _, _, ckpt_path, info, num_inverse, cat_inverse = get_input_generate(dataname)
+    save_path = f'synthetic/{model}/{dataname}/synthetic.csv'
+    if not os.path.exists(f'synthetic/{model}/{dataname}/'):
+      os.makedirs(f'synthetic/{model}/{dataname}/')
+    train_z, _, _, ckpt_path, info, num_inverse, cat_inverse = get_input_generate(dataname, model)
     in_dim = train_z.shape[1]
 
     mean = train_z.mean(0)
@@ -217,8 +218,8 @@ def sample_main(dataname = 'adult', device = 'cuda', steps = None):
 
     idx_name_mapping = info['idx_name_mapping']
     idx_name_mapping = {int(key): value for key, value in idx_name_mapping.items()}
-    if not os.path.exists(f'sample'):
-        os.makedirs(f'sample')
+    # if not os.path.exists(f'sample'):
+    #     os.makedirs(f'sample')
     syn_df.rename(columns = idx_name_mapping, inplace=True)
     syn_df.to_csv(save_path, index = False)
 
