@@ -1023,6 +1023,8 @@ def num_process_nans(dataset: Dataset, policy: Optional[NumNanPolicy]) -> Datase
         assert util.raise_unknown('policy', policy)
     return dataset
 
+def Identity_transform(X):
+    return X
 
 # Inspired by: https://github.com/yandex-research/rtdl/blob/a4c93a32b334ef55d2a0559a4407c8306ffeeaee/lib/data.py#L20
 def normalize(
@@ -1048,6 +1050,8 @@ def normalize(
         #     X_train = X_train + noise_std * np.random.default_rng(seed).standard_normal(
         #         X_train.shape
         #     )
+    elif normalization == 'identity':
+        normalizer = sklearn.preprocessing.FunctionTransformer(Identity_transform, inverse_func=Identity_transform)
     else:
         util.raise_unknown('normalization', normalization)
 

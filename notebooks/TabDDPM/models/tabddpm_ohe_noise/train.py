@@ -87,7 +87,7 @@ class Trainer:
         while step < self.steps:
             start_time = time.time()
             x = next(self.train_iter)[0]
-            x[:, -self.num_noise:] += torch.randn(x.shape[0], self.num_noise) * self.sigmas[step]
+            x[:, -self.num_noise:] = x[:, -self.num_noise:] + torch.randn(x.shape[0], self.num_noise) * self.sigmas[step]
             
             batch_loss_multi, batch_loss_gauss = self._run_step(x)
 

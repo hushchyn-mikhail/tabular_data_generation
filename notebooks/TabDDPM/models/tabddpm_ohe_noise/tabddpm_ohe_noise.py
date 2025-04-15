@@ -16,11 +16,18 @@ from models.tabddpm_ohe_noise.sample import sample
 from models.tabddpm_ohe_noise.modules import GaussianMultinomialDiffusion, MLPDiffusion
 
 class TabDDPM_OHE_Noise():
-    def __init__(self, CONFIG, sigmas=None, model_save_path=None):
+    def __init__(self, CONFIG, sigmas=None, model_save_path=None, dataname=None, device=None):
         self.curr_dir = os.path.dirname(os.path.abspath(__file__))
         self.CONFIG = CONFIG
-        self.dataname = self.CONFIG.get_arg('dataname')
-        self.device = self.CONFIG.get_arg('device')
+        if dataname:
+            self.dataname = dataname
+        else:
+            self.dataname = self.CONFIG.get_arg('dataname')
+
+        if device:
+            self.device = device
+        else:
+            self.device = self.CONFIG.get_arg('device')
 
         self.config_path = f'{self.curr_dir}/configs/{self.dataname}.toml'
         if not model_save_path:
@@ -31,8 +38,7 @@ class TabDDPM_OHE_Noise():
 
         if not os.path.exists(self.model_save_path):
             os.makedirs(self.model_save_path)
-        
-        
+
         self.CONFIG.add_arg('train', 1)
         self.raw_config = src.load_config(self.config_path)
 

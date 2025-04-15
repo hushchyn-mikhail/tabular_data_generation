@@ -1,15 +1,15 @@
 {
-    "dataname": "adult_ON",
-    "method": "tabddpm_ON_mult_6",
+    "dataname": "adult_ON_QnSC",
+    "method": "tabddpm_ON_QnSC_mult_9",
     "device": "cuda",
-    "save_path": "./synthetic/adult_ON/initial_tabddpm_ON_mult_6.csv",
     "mode": "train",
     "train": 1,
-    "sample_save_path": "./synthetic/adult_ON/initial_tabddpm_ON_mult_6.csv",
+    "sample_save_path": "./synthetic/adult_ON_QnSC/initial_tabddpm_ON_QnSC_mult_9.csv",
     "sigma_scheduller_name": "constant",
     "sigma_value": 0.001,
     "num_noise": 103,
-    "real_path": "./synthetic/adult_ON/initial_real.csv",
-    "test_path": "./synthetic/adult_ON/initial_test.csv",
-    "info_path": "./data/adult_ON/initial_info.json"
+    "real_path": "./synthetic/adult_ON_QnSC/initial_real.csv",
+    "test_path": "./synthetic/adult_ON_QnSC/initial_test.csv",
+    "info_path": "./data/adult_ON_QnSC/initial_info.json",
+    "save_path": "./synthetic/adult_ON_QnSC/initial_tabddpm_ON_QnSC_mult_9.csv"
 }

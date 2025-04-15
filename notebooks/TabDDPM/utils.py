@@ -8,6 +8,7 @@ import sys
 import json
 import argparse
 from torch.utils.data import Dataset
+import sklearn.preprocessing
 
 import src
 from pprint import pprint
@@ -277,13 +278,13 @@ def process_data(name):
  
     save_dir = f'data/{name}'
     np.save(f'{save_dir}/X_num_train.npy', X_num_train)
-    if X_cat_train:
+    if X_cat_train.shape[1] > 0:
         np.save(f'{save_dir}/X_cat_train.npy', X_cat_train)
         print("X_cat_train have not been saved. No data.")
     np.save(f'{save_dir}/y_train.npy', y_train)
 
     np.save(f'{save_dir}/X_num_test.npy', X_num_test)
-    if X_cat_test:
+    if X_cat_test.shape[1] > 0:
         np.save(f'{save_dir}/X_cat_test.npy', X_cat_test)
         print("X_cat_test have not been saved. No data.")
     np.save(f'{save_dir}/y_test.npy', y_test)
@@ -360,7 +361,7 @@ def process_data(name):
     print('Num', num)
     print('Cat', cat)
 
-def categorial_to_OHE(name):
+def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
     with open(f'{INFO_PATH}/{name}.json', 'r') as f:
         info = json.load(f)
     
@@ -414,6 +415,7 @@ def categorial_to_OHE(name):
     
     ohe_cat_data = pd.get_dummies(real_cat_data).astype(int)
     ohe_target_data = pd.get_dummies(real_target_data).astype(int)
+    len_num_prev = real_num_data.shape[1]
     len_cat_prev = ohe_cat_data.shape[1]
     len_target_prev = ohe_target_data.shape[1] - 1
     
@@ -434,6 +436,35 @@ def categorial_to_OHE(name):
     info['num_col_idx'] = list(tmp.columns[:-1])
     info['cat_col_idx'] = []
     info['prev_cat_num'] = len_cat_prev + len_target_prev
+
+    if do_quantile_and_standart_scale:
+        train_num_if = tmp[range(len_num_prev)].iloc[:len(train_tmp)]
+        test_num_if = tmp[range(len_num_prev)].iloc[-len(test_tmp):]
+        
+        train_cat_if = tmp[range(len_num_prev, tmp.shape[1])].iloc[:len(train_tmp)]
+        test_cat_if = tmp[range(len_num_prev, tmp.shape[1])].iloc[-len(test_tmp):]
+    
+        # QUANTILE FOR NUMERICAL
+        num_normalizer = sklearn.preprocessing.QuantileTransformer(
+                output_distribution='normal',
+                n_quantiles=max(min(train_num_if.shape[0] // 30, 1000), 10),
+                subsample=int(1e9),
+                random_state=0,
+            )
+        num_normalizer.fit(train_num_if)
+    
+        train_num_if = pd.DataFrame(num_normalizer.transform(train_num_if), columns=train_num_if.columns)
+        test_num_if = pd.DataFrame(num_normalizer.transform(test_num_if), columns=test_num_if.columns)
+    
+        # SCANDART SCALER FOR OHE
+        cat_normalizer = sklearn.preprocessing.StandardScaler()
+        cat_normalizer.fit(train_cat_if)
+    
+        train_cat_if = pd.DataFrame(cat_normalizer.transform(train_cat_if), columns=train_cat_if.columns)
+        test_cat_if = pd.DataFrame(cat_normalizer.transform(test_cat_if), columns=test_cat_if.columns)
+    
+        tmp = pd.concat([pd.concat([train_num_if, train_cat_if], axis=1), pd.concat([test_num_if, test_cat_if], axis=1)])
+        tmp = tmp.reset_index(drop=True)
     
     tmp.iloc[:len(train_tmp)].to_csv(info['data_path'], index=False, header=None)
     tmp.iloc[-len(test_tmp):].to_csv(test_save_path, index=False, header=None)
@@ -448,6 +479,14 @@ def categorial_to_OHE(name):
         json.dump(info, f, ensure_ascii=False, indent=4)
     
     print("DONE CONVERTING DATA!")
+    if do_quantile_and_standart_scale:
+        return {
+            'num_normalizer':num_normalizer,
+            'cat_normalizer':cat_normalizer,
+            'len_num_prev':len_num_prev,
+            'len_cat_prev':len_cat_prev,
+            'len_target_prev':len_target_prev
+        }
 
 def postprocess_OHE(name, name_copy):
     with open(f'./data/{name}/info.json', 'r') as f:
@@ -463,7 +502,7 @@ def postprocess_OHE(name, name_copy):
     initial_info['num_col_idx'] = info['num_col_idx_initial']
     initial_info['cat_col_idx'] = info['cat_col_idx_initial']
     initial_info['target_col_idx'] = info['target_col_idx_initial']
-    initial_info['idx_name_mapping'] = dict(zip(range(15), info['column_names_initial']))
+    initial_info['idx_name_mapping'] = dict(zip(range(len(info['column_names_initial'])), info['column_names_initial']))
     
     initial_info['metadata']['columns'] = {}
     for i in initial_info['num_col_idx']:
@@ -486,8 +525,19 @@ def postprocess_OHE(name, name_copy):
         json.dump(initial_info, f, ensure_ascii=False, indent=4)
     print("NEW FILE CREATED")
 
-def postsample_OHE(dataname, path_to_save):
+def postsample_OHE(dataname, path_to_save, normalizers=None):
     sample = pd.read_csv(CONFIG.get_arg('sample_save_path'))
+
+    if normalizers:
+        columns = sample.columns.copy()
+        sample_q = sample[columns[range(normalizers['len_num_prev'])].tolist()].copy()
+        sample = sample.drop(columns=sample.columns[range(normalizers['len_num_prev'])])
+        
+        sample_q = pd.DataFrame(normalizers['num_normalizer'].inverse_transform(sample_q), 
+                                columns=columns[range(normalizers['len_num_prev'])]).round()
+        sample = pd.DataFrame(normalizers['cat_normalizer'].inverse_transform(sample), 
+                              columns=sample.columns).round()
+        sample = pd.concat([sample_q, sample], axis=1)
 
     initial_sample = pd.DataFrame()
     
