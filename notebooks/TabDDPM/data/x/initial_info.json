@@ -1,0 +1,177 @@
+{
+    "name": "x",
+    "task_type": "binclass",
+    "column_names": [
+        "age",
+        "fnlwgt",
+        "education.num",
+        "capital.gain",
+        "capital.loss",
+        "hours.per.week",
+        "workclass",
+        "education",
+        "marital.status",
+        "occupation",
+        "relationship",
+        "race",
+        "sex",
+        "native.country",
+        "income"
+    ],
+    "num_col_idx": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+    ],
+    "cat_col_idx": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+    ],
+    "target_col_idx": [
+        14
+    ],
+    "file_type": "csv",
+    "data_path": "data/x/x.data",
+    "test_path": "data/x/x.test",
+    "column_info": {
+        "0": {},
+        "type": "categorical",
+        "max": 99.0,
+        "min": 1.0,
+        "2": {},
+        "4": {},
+        "10": {},
+        "11": {},
+        "12": {},
+        "1": {},
+        "categorizes": [
+            " <=50K",
+            " >50K"
+        ],
+        "3": {},
+        "5": {},
+        "6": {},
+        "7": {},
+        "8": {},
+        "9": {},
+        "13": {},
+        "14": {}
+    },
+    "train_num": 32561,
+    "test_num": 16281,
+    "idx_mapping": {
+        "0": 0,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7,
+        "8": 8,
+        "9": 9,
+        "10": 10,
+        "11": 11,
+        "12": 12,
+        "13": 13,
+        "14": 14
+    },
+    "inverse_idx_mapping": {
+        "0": 0,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7,
+        "8": 8,
+        "9": 9,
+        "10": 10,
+        "11": 11,
+        "12": 12,
+        "13": 13,
+        "14": 14
+    },
+    "idx_name_mapping": {
+        "0": "age",
+        "1": "fnlwgt",
+        "2": "education.num",
+        "3": "capital.gain",
+        "4": "capital.loss",
+        "5": "hours.per.week",
+        "6": "workclass",
+        "7": "education",
+        "8": "marital.status",
+        "9": "occupation",
+        "10": "relationship",
+        "11": "race",
+        "12": "sex",
+        "13": "native.country",
+        "14": "income"
+    },
+    "metadata": {
+        "columns": {
+            "0": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "1": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "2": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "3": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "4": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "5": {
+                "sdtype": "numerical",
+                "computer_representation": "Float"
+            },
+            "6": {
+                "sdtype": "categorical"
+            },
+            "7": {
+                "sdtype": "categorical"
+            },
+            "8": {
+                "sdtype": "categorical"
+            },
+            "9": {
+                "sdtype": "categorical"
+            },
+            "10": {
+                "sdtype": "categorical"
+            },
+            "11": {
+                "sdtype": "categorical"
+            },
+            "12": {
+                "sdtype": "categorical"
+            },
+            "13": {
+                "sdtype": "categorical"
+            },
+            "14": {
+                "sdtype": "categorical"
+            }
+        }
+    }
+}
