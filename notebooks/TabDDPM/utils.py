@@ -10,12 +10,23 @@ import argparse
 from torch.utils.data import Dataset
 import sklearn.preprocessing
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.model_selection import StratifiedShuffleSplit
+
+from sklearn.model_selection import train_test_split
+
 import src
 from pprint import pprint
 
 DATA_DIR = 'data'
 NAME_URL_DICT_UCI = {
-    'adult': 'https://archive.ics.uci.edu/static/public/2/adult.zip'
+    'adult': 'https://archive.ics.uci.edu/static/public/2/adult.zip',
+    'default': 'https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip',
+    'magic': 'https://archive.ics.uci.edu/static/public/159/magic+gamma+telescope.zip',
+    'shoppers': 'https://archive.ics.uci.edu/static/public/468/online+shoppers+purchasing+intention+dataset.zip',
+    'beijing': 'https://archive.ics.uci.edu/static/public/381/beijing+pm2+5+data.zip',
+    'news': 'https://archive.ics.uci.edu/static/public/332/online+news+popularity.zip'
 }
 TYPE_TRANSFORM ={
     'float', np.float32,
@@ -129,46 +140,151 @@ def get_column_name_mapping(data_df, num_col_idx, cat_col_idx, target_col_idx, c
     return idx_mapping, inverse_idx_mapping, idx_name_mapping
 
 
-def train_val_test_split(data_df, cat_columns, num_train = 0, num_test = 0):
+def train_val_test_split(data_df, cat_columns, num_train = 0, num_test = 0, seed = 1234):
     total_num = data_df.shape[0]
     idx = np.arange(total_num)
-
-
-    seed = 1234
 
     while True:
         np.random.seed(seed)
         np.random.shuffle(idx)
 
-        train_idx = idx[:num_train]
-        test_idx = idx[-num_test:]
+        ############ base ################################################
+
+        # train_idx = idx[:num_train]
+        # test_idx = idx[-num_test:]
+
+        # train_df = data_df.loc[train_idx]
+        # test_df = data_df.loc[test_idx]
+
+        ##################################################################
 
 
-        train_df = data_df.loc[train_idx]
-        test_df = data_df.loc[test_idx]
+        ############ v2 ################################################
+        # print('NEW TRAIN TEST SPLIT')
+        # # сортируем колонки по числу уникальных значений
+        # unique_cnt = []
+        # for i in data_df.columns:
+        #     unique_cnt.append((i, len(data_df[i].unique())))
+        # unique_cnt = sorted(unique_cnt, key=lambda x: x[1])
 
+        # strat_cols = []
+        # for i, cnt in unique_cnt:
+        #     if not (data_df.groupby(i).count() == 1).any().any():
+        #         if len(strat_cols) == 0:
+        #             strat_cols.append(i)
+        #         elif not (data_df.groupby([*strat_cols, i]).count() == 1).any().any():
+        #             strat_cols.append(i)
+        # print(f"Columns for stratification: {strat_cols}")
+        # train_df, test_df = train_test_split(data_df, test_size=num_test, random_state=seed, stratify=data_df[strat_cols], shuffle=True)
+        ########################################################################
 
+        ############ v3 ################################################
+        # print('NEW TRAIN TEST SPLIT v3')
 
+        do_ = 0
+        while True:
+            if do_ == 1:
+                do_ = 0
+                seed += 1
+                # print(f'seed in clusters: {seed}')
+                break
+            try:
+                cols = list(data_df.columns[~(data_df.dtypes=='object')])
+                num = data_df[cols]
+                scaler = StandardScaler()
+                num_scaled = scaler.fit_transform(num)
+                n_clusters = CONFIG.get_arg('num_clusters')
+                print(f'n_clusters: {n_clusters}')
+                kmeans = KMeans(n_clusters=n_clusters, random_state=seed)
+                clusters = kmeans.fit_predict(num_scaled)
+                sss = StratifiedShuffleSplit(n_splits=1, test_size=num_test, random_state=seed)
+                for train_index, test_index in sss.split(num, clusters):
+                    train_df, test_df = data_df.iloc[train_index], data_df.iloc[test_index]
+                do_ = 1
+            except Exception as e:
+                seed += 1
+                # print(f'seed in clusters: {seed}')
+                # print(e)
+                pass
+        ########################################################################
+        
         flag = 0
         for i in cat_columns:
-            if len(set(train_df[i])) != len(set(data_df[i])):
+            if set(train_df[i]) != set(data_df[i]):
+            # if len(set(train_df[i])) != len(set(data_df[i])):
                 flag = 1
                 break
 
         if flag == 0:
             break
         else:
+            # print(f'seed: {seed}')
             seed += 1
         
-    return train_df, test_df, seed    
+    return train_df, test_df, seed  
+
+def preprocess_beijing(dataname):
+    with open(f'{INFO_PATH}/{dataname}.json', 'r') as f:
+        info = json.load(f)
+    pprint(info)
+    
+    data_path = info['raw_data_path']
+
+    data_df = pd.read_csv(data_path)
+    columns = data_df.columns
+
+    data_df = data_df[columns[1:]]
+
+
+    df_cleaned = data_df.dropna()
+    df_cleaned.to_csv(info['data_path'], index = False)
+
+def preprocess_news(dataname):
+    with open(f'{INFO_PATH}/{dataname}.json', 'r') as f:
+        info = json.load(f)
+
+    data_path = info['raw_data_path']
+    data_df = pd.read_csv(data_path)
+    data_df = data_df.drop('url', axis=1)
+
+    columns = np.array(data_df.columns.tolist())
+
+    cat_columns1 = columns[list(range(12,18))]
+    cat_columns2 = columns[list(range(30,38))]
+
+    cat_col1 = data_df[cat_columns1].astype(int).to_numpy().argmax(axis = 1)
+    cat_col2 = data_df[cat_columns2].astype(int).to_numpy().argmax(axis = 1)
+
+    data_df = data_df.drop(cat_columns2, axis=1)
+    data_df = data_df.drop(cat_columns1, axis=1)
+
+    data_df['data_channel'] = cat_col1
+    data_df['weekday'] = cat_col2
+    
+    data_save_path = 'data/news/news.csv'
+    data_df.to_csv(f'{data_save_path}', index = False)
+
+    columns = np.array(data_df.columns.tolist())
+    num_columns = columns[list(range(45))]
+    cat_columns = ['data_channel', 'weekday']
+    target_columns = columns[[45]]
+
+    info['num_col_idx'] = list(range(45))
+    info['cat_col_idx'] = [46, 47]
+    info['target_col_idx'] = [45]
+    info['data_path'] = data_save_path
+    
+    name = 'news'
+    with open(f'{INFO_PATH}/{name}.json', 'w') as file:
+        json.dump(info, file, indent=4)
 
 
 def process_data(name):
 
     if name == 'news':
-        preprocess_news()
+        preprocess_news('news')
     elif name == 'beijing':
-        preprocess_beijing()
+        preprocess_beijing('beijing')
 
     with open(f'{INFO_PATH}/{name}.json', 'r') as f:
         info = json.load(f)
@@ -199,15 +315,17 @@ def process_data(name):
 
         # if testing data is given
         test_path = info['test_path']
-
-        with open(test_path, 'r') as f:
-            lines = f.readlines()[1:]
-            test_save_path = f'data/{name}/test.data'
-            if not os.path.exists(test_save_path):
-                with open(test_save_path, 'a') as f1:     
-                    for line in lines:
-                        save_line = line.strip('\n').strip('.')
-                        f1.write(f'{save_line}\n')
+        test_save_path = f'data/{name}/test.data'
+        
+        if not os.path.exists(test_save_path):
+            with open(test_path, 'r') as f:
+                lines = f.readlines()[1:]
+                
+                if not os.path.exists(test_save_path):
+                    with open(test_save_path, 'a') as f1:     
+                        for line in lines:
+                            save_line = line.strip('\n').strip('.')
+                            f1.write(f'{save_line}\n')
 
         test_df = pd.read_csv(test_save_path, header = None)
         train_df = data_df
@@ -278,14 +396,16 @@ def process_data(name):
  
     save_dir = f'data/{name}'
     np.save(f'{save_dir}/X_num_train.npy', X_num_train)
-    if X_cat_train.shape[1] > 0:
+    if (X_cat_train.shape[1] > 0) or (CONFIG.get_arg('save_cat') == 1):
         np.save(f'{save_dir}/X_cat_train.npy', X_cat_train)
+    else:
         print("X_cat_train have not been saved. No data.")
     np.save(f'{save_dir}/y_train.npy', y_train)
 
     np.save(f'{save_dir}/X_num_test.npy', X_num_test)
-    if X_cat_test.shape[1] > 0:
+    if (X_cat_test.shape[1] > 0) or (CONFIG.get_arg('save_cat') == 1):
         np.save(f'{save_dir}/X_cat_test.npy', X_cat_test)
+    else:
         print("X_cat_test have not been saved. No data.")
     np.save(f'{save_dir}/y_test.npy', y_test)
 
@@ -361,46 +481,103 @@ def process_data(name):
     print('Num', num)
     print('Cat', cat)
 
-def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
+def categorial_to_OHE(name, do_quantile_and_standart_scale=False, do_quantile_and_identity=False, target_cat=True):
     with open(f'{INFO_PATH}/{name}.json', 'r') as f:
         info = json.load(f)
+
+    data_path = info['data_path']
+    if info['file_type'] == 'csv':
+        data_df = pd.read_csv(data_path, header = info['header'])
+
+    elif info['file_type'] == 'xls':
+        data_df = pd.read_excel(data_path, sheet_name='Data', header=1)
+        data_df = data_df.drop('ID', axis=1)
+
+        info['data_path'] = info['data_path'].replace('xls', 'csv')
+        info['file_type'] = 'csv'
+
+    num_data = data_df.shape[0]
+
+    column_names = info['column_names'] if info['column_names'] else data_df.columns.tolist()
+    info['column_names'] = column_names.copy()
+
+    num_columns = [column_names[i] for i in info['num_col_idx']]
+    cat_columns = [column_names[i] for i in info['cat_col_idx']]
+    target_columns = [column_names[i] for i in info['target_col_idx']]
     
     save_dir = f'data/{name}'
     
     if info['test_path']:
         # if testing data is given
         test_path = info['test_path']
+        test_save_path = f'data/{name}/test.data'
     
-        with open(test_path, 'r') as f:
-            lines = f.readlines()[1:]
-            test_save_path = f'data/{name}/test.data'
-            if not os.path.exists(test_save_path):
-                with open(test_save_path, 'a') as f1:     
-                    for line in lines:
-                        save_line = line.strip('\n').strip('.')
-                        f1.write(f'{save_line}\n')
+        if not os.path.exists(test_save_path):
+            with open(test_path, 'r') as f:
+                lines = f.readlines()[1:]
+                if not os.path.exists(test_save_path):
+                    with open(test_save_path, 'a') as f1:     
+                        for line in lines:
+                            save_line = line.strip('\n').strip('.')
+                            f1.write(f'{save_line}\n')
+        train_tmp = pd.read_csv(info['data_path'], header = None)
+        test_tmp = pd.read_csv(test_save_path, header = None)
+
+    else:  
+        # Train/ Test Split, 90% Training, 10% Testing (Validation set will be selected from Training set)
+
+        num_train = int(num_data*0.9)
+        num_test = num_data - num_train
+
+        train_tmp, test_tmp, seed = train_val_test_split(data_df, cat_columns, num_train, num_test)
+        test_save_path = f'data/{name}/test.data'
+
+        train_tmp.columns = list(range(train_tmp.shape[1]))
+        test_tmp.columns = list(range(test_tmp.shape[1]))
+
+        train_tmp.to_csv(info['data_path'], header = None, index=False)
+        test_tmp.to_csv(test_save_path, header = None, index=False)
+
+        info['test_path'] = test_save_path
+        info['header'] = None
     
-    info['column_names_initial'] = [*np.array(info['column_names'])[info['num_col_idx']], 
-                                *np.array(info['column_names'])[info['cat_col_idx']],
-                                *np.array(info['column_names'])[info['target_col_idx']]].copy()
     
-    info['num_col_idx_initial'] = list(range(len(info['num_col_idx'])))
-    info['cat_col_idx_initial'] = list(range(len(info['num_col_idx']), 
-                                                 len(info['num_col_idx']) + len(info['cat_col_idx'])))
-    info['target_col_idx_initial'] = list(range(len(info['num_col_idx']) + len(info['cat_col_idx']), 
-                                                    len(info['num_col_idx']) + len(info['cat_col_idx']) + len(info['target_col_idx'])))
-    
-    train_tmp = pd.read_csv(info['data_path'], header = None)
-    test_tmp = pd.read_csv(test_save_path, header = None)
     tmp = pd.concat([train_tmp, test_tmp])
+
+    # если таргет категориальный, то ставим справа, если числовой - слева
+    if target_cat:
+        info['column_names_initial'] = [*np.array(info['column_names'])[info['num_col_idx']], 
+                                    *np.array(info['column_names'])[info['cat_col_idx']],
+                                    *np.array(info['column_names'])[info['target_col_idx']]].copy()
+        
+        info['num_col_idx_initial'] = list(range(len(info['num_col_idx'])))
+        info['cat_col_idx_initial'] = list(range(len(info['num_col_idx']), 
+                                                     len(info['num_col_idx']) + len(info['cat_col_idx'])))
+        info['target_col_idx_initial'] = list(range(len(info['num_col_idx']) + len(info['cat_col_idx']), 
+                                                        len(info['num_col_idx']) + len(info['cat_col_idx']) + len(info['target_col_idx'])))
+    else:
+        info['column_names_initial'] = [*np.array(info['column_names'])[info['target_col_idx']],
+                                    *np.array(info['column_names'])[info['num_col_idx']], 
+                                    *np.array(info['column_names'])[info['cat_col_idx']]
+                                    ].copy()
+        info['target_col_idx_initial'] = list(range(len(info['target_col_idx'])))
+        info['num_col_idx_initial'] = list(range(len(info['target_col_idx']), len(info['target_col_idx'])+len(info['num_col_idx'])))
+        info['cat_col_idx_initial'] = list(range(len(info['target_col_idx'])+len(info['num_col_idx']), 
+                                                     len(info['target_col_idx'])+len(info['num_col_idx']) + len(info['cat_col_idx'])))
+        
     
-    real_num_data = tmp[info['num_col_idx']]
-    real_cat_data = tmp[info['cat_col_idx']]
-    real_target_data = tmp[info['target_col_idx']]
+    real_num_data = tmp[tmp.columns[info['num_col_idx']]]
+    real_cat_data = tmp[tmp.columns[info['cat_col_idx']]]
+    real_target_data = tmp[tmp.columns[info['target_col_idx']]]
     
-    concat_tmp = pd.concat([real_num_data,
-                 real_cat_data, 
-                 real_target_data], axis=1)
+    if target_cat:
+        concat_tmp = pd.concat([real_num_data,
+                     real_cat_data, 
+                     real_target_data], axis=1)
+    else:
+        concat_tmp = pd.concat([real_target_data,
+                     real_num_data,
+                     real_cat_data], axis=1)
     concat_tmp.columns = list(range(concat_tmp.shape[1]))
     
     if not os.path.exists(f'synthetic/{name}'):
@@ -412,18 +589,32 @@ def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
     concat_tmp.iloc[-len(test_tmp):].to_csv(f'synthetic/{name}/initial_test.csv', 
                                                                          index = False, 
                                                                          header=info['column_names_initial'])
-    
-    ohe_cat_data = pd.get_dummies(real_cat_data).astype(int)
-    ohe_target_data = pd.get_dummies(real_target_data).astype(int)
+
+    if real_cat_data.shape[1] > 0:
+        ohe_cat_data = pd.get_dummies(real_cat_data.astype(str)).astype(int)
+    else:
+        ohe_cat_data = pd.DataFrame()
+    ohe_cat_data.columns = [c + '_after_OHE' for c in ohe_cat_data.columns]
+    if target_cat:
+        ohe_target_data = pd.get_dummies(real_target_data.astype(str)).astype(int)
+        ohe_target_data.columns = [c + '_after_OHE' for c in ohe_target_data.columns]
+    else:
+        ohe_target_data = real_target_data
     len_num_prev = real_num_data.shape[1]
     len_cat_prev = ohe_cat_data.shape[1]
-    len_target_prev = ohe_target_data.shape[1] - 1
-    
-    tmp = pd.concat([real_num_data, 
-                 ohe_cat_data, 
-                 ohe_target_data], axis=1)
+    len_target_prev = ohe_target_data.shape[1] - int(target_cat)
+
+    if target_cat:
+        tmp = pd.concat([real_num_data, 
+                     ohe_cat_data, 
+                     ohe_target_data], axis=1)
+    else:
+        tmp = pd.concat([ohe_target_data,
+                     real_num_data, 
+                     ohe_cat_data], axis=1)
     info['initial_column_names'] = list(tmp.columns)
-    tmp = tmp.drop(columns=tmp.columns[-1])
+    if target_cat:
+        tmp = tmp.drop(columns=tmp.columns[-1])
 
     info['column_names'] = list([str(col) for col in tmp.columns])
     info['column_info'] = {}
@@ -431,18 +622,27 @@ def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
         info['column_info'][col] = 'float'
     
     tmp.columns = list(range(tmp.shape[1]))
-    
-    info['target_col_idx'] = list(tmp.columns[-1:])
-    info['num_col_idx'] = list(tmp.columns[:-1])
+
+    if target_cat:
+        info['target_col_idx'] = list(tmp.columns[-1:])
+        info['num_col_idx'] = list(tmp.columns[:-1])
+    else:
+        info['target_col_idx'] = list(tmp.columns[:1])
+        info['num_col_idx'] = list(tmp.columns[1:])
     info['cat_col_idx'] = []
-    info['prev_cat_num'] = len_cat_prev + len_target_prev
+    
+    if target_cat:
+        info['prev_cat_num'] = len_cat_prev + len_target_prev
+    else:
+        info['prev_cat_num'] = len_cat_prev
 
     if do_quantile_and_standart_scale:
-        train_num_if = tmp[range(len_num_prev)].iloc[:len(train_tmp)]
-        test_num_if = tmp[range(len_num_prev)].iloc[-len(test_tmp):]
+        len_num_prev_tmp = len_num_prev + (1 - int(target_cat))
+        train_num_if = tmp[range(len_num_prev_tmp)].iloc[:len(train_tmp)]
+        test_num_if = tmp[range(len_num_prev_tmp)].iloc[-len(test_tmp):]
         
-        train_cat_if = tmp[range(len_num_prev, tmp.shape[1])].iloc[:len(train_tmp)]
-        test_cat_if = tmp[range(len_num_prev, tmp.shape[1])].iloc[-len(test_tmp):]
+        train_cat_if = tmp[range(len_num_prev_tmp, tmp.shape[1])].iloc[:len(train_tmp)]
+        test_cat_if = tmp[range(len_num_prev_tmp, tmp.shape[1])].iloc[-len(test_tmp):]
     
         # QUANTILE FOR NUMERICAL
         num_normalizer = sklearn.preprocessing.QuantileTransformer(
@@ -465,10 +665,41 @@ def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
     
         tmp = pd.concat([pd.concat([train_num_if, train_cat_if], axis=1), pd.concat([test_num_if, test_cat_if], axis=1)])
         tmp = tmp.reset_index(drop=True)
+
+    if do_quantile_and_identity:
+        len_num_prev_tmp = len_num_prev + (1 - int(target_cat))
+        train_num_if = tmp[range(len_num_prev_tmp)].iloc[:len(train_tmp)]
+        test_num_if = tmp[range(len_num_prev_tmp)].iloc[-len(test_tmp):]
+        
+        train_cat_if = tmp[range(len_num_prev_tmp, tmp.shape[1])].iloc[:len(train_tmp)]
+        test_cat_if = tmp[range(len_num_prev_tmp, tmp.shape[1])].iloc[-len(test_tmp):]
+    
+        # QUANTILE FOR NUMERICAL
+        num_normalizer = sklearn.preprocessing.QuantileTransformer(
+                output_distribution='normal',
+                n_quantiles=max(min(train_num_if.shape[0] // 30, 1000), 10),
+                subsample=int(1e9),
+                random_state=0,
+            )
+        num_normalizer.fit(train_num_if)
+    
+        train_num_if = pd.DataFrame(num_normalizer.transform(train_num_if), columns=train_num_if.columns)
+        test_num_if = pd.DataFrame(num_normalizer.transform(test_num_if), columns=test_num_if.columns)
+    
+        # IDENTITY FOR OHE
+        cat_normalizer = sklearn.preprocessing.FunctionTransformer(src.Identity_transform, inverse_func=src.Identity_transform)
+        cat_normalizer.fit(train_cat_if)
+    
+        train_cat_if = pd.DataFrame(cat_normalizer.transform(train_cat_if), columns=train_cat_if.columns)
+        test_cat_if = pd.DataFrame(cat_normalizer.transform(test_cat_if), columns=test_cat_if.columns)
+    
+        tmp = pd.concat([pd.concat([train_num_if, train_cat_if], axis=1), pd.concat([test_num_if, test_cat_if], axis=1)])
+        tmp = tmp.reset_index(drop=True)
     
     tmp.iloc[:len(train_tmp)].to_csv(info['data_path'], index=False, header=None)
     tmp.iloc[-len(test_tmp):].to_csv(test_save_path, index=False, header=None)
     info['done_ohe_noise'] = 'yes'
+    info['file_type'] = 'csv'
     
     info['task_type'] = 'regression'
 
@@ -479,11 +710,11 @@ def categorial_to_OHE(name, do_quantile_and_standart_scale=False):
         json.dump(info, f, ensure_ascii=False, indent=4)
     
     print("DONE CONVERTING DATA!")
-    if do_quantile_and_standart_scale:
+    if do_quantile_and_standart_scale or do_quantile_and_identity:
         return {
             'num_normalizer':num_normalizer,
             'cat_normalizer':cat_normalizer,
-            'len_num_prev':len_num_prev,
+            'len_num_prev':len_num_prev_tmp,
             'len_cat_prev':len_cat_prev,
             'len_target_prev':len_target_prev
         }
@@ -518,14 +749,15 @@ def postprocess_OHE(name, name_copy):
     
     keys = list(initial_info.keys())
     for key in keys:
-        if not info_copy.get(key):
+        if info_copy.get(key) is None:
             initial_info.pop(key)
     
     with open(f'./data/{name}/initial_info.json', 'w', encoding='utf-8') as f:
         json.dump(initial_info, f, ensure_ascii=False, indent=4)
+    pprint(initial_info)
     print("NEW FILE CREATED")
 
-def postsample_OHE(dataname, path_to_save, normalizers=None):
+def postsample_OHE(dataname, path_to_save, normalizers=None, target_cat=True):
     sample = pd.read_csv(CONFIG.get_arg('sample_save_path'))
 
     if normalizers:
@@ -534,9 +766,9 @@ def postsample_OHE(dataname, path_to_save, normalizers=None):
         sample = sample.drop(columns=sample.columns[range(normalizers['len_num_prev'])])
         
         sample_q = pd.DataFrame(normalizers['num_normalizer'].inverse_transform(sample_q), 
-                                columns=columns[range(normalizers['len_num_prev'])]).round()
+                                columns=columns[range(normalizers['len_num_prev'])])#.round()
         sample = pd.DataFrame(normalizers['cat_normalizer'].inverse_transform(sample), 
-                              columns=sample.columns).round()
+                              columns=sample.columns)#.round()
         sample = pd.concat([sample_q, sample], axis=1)
 
     initial_sample = pd.DataFrame()
@@ -550,26 +782,27 @@ def postsample_OHE(dataname, path_to_save, normalizers=None):
     with open(info_path, 'r') as f:
         info = json.load(f)
     
-    initial_num_col = [col for col in sample.columns if '_' not in col]
+    initial_num_col = [col for col in sample.columns if '_after_OHE' not in col]
     initial_sample = pd.concat([initial_sample, sample[initial_num_col]])
     sample = sample.drop(columns=initial_num_col)
     
-    for i in range(1, len(initial_info['column_names']) - 1): # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
+    for i in range(0, len(initial_info['column_names']) - int(target_cat)): # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
         cols = [col for col in sample.columns if f'{i}_' == col[:len(str(i))+1]]
         if cols:
             result = sample[cols].idxmax(axis=1)
-            result = result.apply(lambda x: x.replace(f'{i}_', ''))
+            result = result.apply(lambda x: x[len(str(i))+1:].replace('_after_OHE', ''))
             initial_sample = pd.concat([initial_sample, result], axis=1)
             sample = sample.drop(columns=cols)
-    
-    sample[sample.shape[1]] = 1 - sample.sum(axis=1)
-    sample.columns = info['initial_column_names'][-2:] # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
-    for i in range(1, len(initial_info['column_names'])):
-        cols = [col for col in sample.columns if f'{i}_' == col[:len(str(i))+1]]
-        if cols:
-            result = sample[cols].idxmax(axis=1)
-            result = result.apply(lambda x: x.replace(f'{i}_', ''))
-            initial_sample = pd.concat([initial_sample, result], axis=1)
+
+    if target_cat:
+        sample[sample.shape[1]] = 1 - sample.sum(axis=1)
+        sample.columns = info['initial_column_names'][-2:] # ПОМЕНЯТЬ, ЕСЛИ ТАРГЕТОВ БОЛЬШЕ ЧЕМ 2
+        for i in range(0, len(initial_info['column_names'])):
+            cols = [col for col in sample.columns if f'{i}_' == col[:len(str(i))+1]]
+            if cols:
+                result = sample[cols].idxmax(axis=1)
+                result = result.apply(lambda x: x[len(str(i))+1:].replace('_after_OHE', ''))
+                initial_sample = pd.concat([initial_sample, result], axis=1)
     initial_sample.columns = initial_info['column_names']
     initial_sample.to_csv(path_to_save, index = False)
     

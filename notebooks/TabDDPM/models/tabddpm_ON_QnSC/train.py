@@ -12,6 +12,8 @@ sys.path.append('../..')
 import utils
 import src
 
+from torch.utils.tensorboard import SummaryWriter
+
 def get_model(
     model_name,
     model_params,
@@ -28,7 +30,8 @@ def get_model(
 class Trainer:
     def __init__(self, diffusion, train_iter, lr, weight_decay, steps, model_save_path, device=torch.device('cuda:1'),
                 sigmas=None,
-                num_noise=None):
+                num_noise=None,
+                writer=None):
         self.diffusion = diffusion
         self.ema_model = deepcopy(self.diffusion._denoise_fn)
         for param in self.ema_model.parameters():
@@ -52,6 +55,7 @@ class Trainer:
         self.ema_every = 1000
         self.sigmas = sigmas
         self.num_noise = num_noise
+        self.writer = writer
 
     def _anneal_lr(self, step):
         frac_done = step / self.steps
@@ -69,11 +73,14 @@ class Trainer:
 
         loss = loss_multi + loss_gauss
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.diffusion.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         return loss_multi, loss_gauss
 
     def run_loop(self):
+        with open(os.path.join(self.model_save_path, f'models_log.txt'), "w") as text_file:
+            text_file.write(f"Start training for {self.steps} steps...\n")
         step = 0
         curr_loss_multi = 0.0
         curr_loss_gauss = 0.0
@@ -109,6 +116,9 @@ class Trainer:
                 if (step + 1) % self.print_every == 0:
                     print(f'Step {(step + 1)}/{self.steps} MLoss: {mloss} GLoss: {gloss} Sum: {mloss + gloss}')
                 self.loss_history.loc[len(self.loss_history)] =[step + 1, mloss, gloss, mloss + gloss]
+                self.writer.add_scalar("MLoss/train", mloss, step + 1)
+                self.writer.add_scalar("GLoss/train", gloss, step + 1)
+                self.writer.add_scalar("Total_Loss/train", mloss + gloss, step + 1)
 
                 np.set_printoptions(suppress=True)
           
@@ -121,13 +131,17 @@ class Trainer:
                     torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, 'model.pt'))
   
                 if (step + 1) % 10000 == 0:
-                    torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, f'model_{step+1}.pt'))
+                    with open(os.path.join(self.model_save_path, f'models_log.txt'), "a") as text_file:
+                        text_file.write(f"Done: {step + 1} / {self.steps}. Loss: {mloss + gloss}\n")
+                #     torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, f'model_{step+1}.pt'))
 
             # update_ema(self.ema_model.parameters(), self.diffusion._denoise_fn.parameters())
 
             step += 1
             # end_time = time.time()
             # print('Time: ', end_time - start_time)
+        self.writer.flush()
+        self.writer.close()
 
 def train(
     model_save_path,
@@ -151,6 +165,8 @@ def train(
     num_noise=None
 ):
     real_data_path = os.path.normpath(real_data_path)
+
+    writer = SummaryWriter(log_dir=model_save_path)
 
     # zero.improve_reproducibility(seed)
 
@@ -213,7 +229,8 @@ def train(
         model_save_path=model_save_path,
         device=device,
         sigmas=sigmas,
-        num_noise=num_noise
+        num_noise=num_noise,
+        writer=writer
     )
     trainer.run_loop()
 

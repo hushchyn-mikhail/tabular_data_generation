@@ -102,28 +102,30 @@ def calculate_similarity():
     new_real_data['data_type'] = 'Real'
     new_syn_data['data_type'] = 'Synthetic'
 
-    for num_idx_init in info['num_col_idx']:
-      fig = get_column_plot(
-          real_data=new_real_data,
-          synthetic_data=new_syn_data,
-          column_name=info['idx_name_mapping'][str(num_idx_init)],
-          plot_type='distplot'
-      )
+    for column_name in info['column_names']:
+        try:
+            fig = get_column_plot(
+              real_data=new_real_data,
+              synthetic_data=new_syn_data,
+              column_name=column_name,
+              plot_type='distplot'
+            )
 
-      fig.show()
-      fig.write_image(f"{save_dir}/distribution-of-{info['idx_name_mapping'][str(num_idx_init)]}.png")
-
-
-    for cat_idx_init in info['cat_col_idx']:
-      fig = get_column_plot(
-          real_data=new_real_data,
-          synthetic_data=new_syn_data,
-          column_name=info['idx_name_mapping'][str(cat_idx_init)],
-          plot_type='bar'
-      )
-
-      fig.show()
-      fig.write_image(f"{save_dir}/distribution-of-{info['idx_name_mapping'][str(cat_idx_init)]}.png")
+            fig.show()
+            fig.write_image(f"{save_dir}/distribution-of-{column_name}.png")
+        except Exception as e:
+            try:
+                fig = get_column_plot(
+                  real_data=new_real_data,
+                  synthetic_data=new_syn_data,
+                  column_name=column_name,
+                  plot_type='bar'
+                )
+                
+                fig.show()
+                fig.write_image(f"{save_dir}/distribution-of-{column_name}.png")
+            except Exception as e:
+                assert False, f"No distplot for {column_name}"
     print('DONE!')
 
     return {

@@ -23,6 +23,7 @@ def calculate_alpha_beta():
         syn_path = f'synthetic/{dataname}/{model}.csv'
     else:
         syn_path = CONFIG.get_arg('sample_save_path')
+        
     if not CONFIG.get_arg('real_path'):
         real_path = f'synthetic/{dataname}/real.csv'
     else:
@@ -84,21 +85,20 @@ def calculate_alpha_beta():
     #         cat_syn_data_np[:, 4] = cat_syn_data[14].astype('int').to_numpy().astype('str')
     #         cat_syn_data_np[:, 4] = cat_syn_data[14].astype('int').to_numpy().astype('str')
         
-    #     elif dataname in ['default', 'faults', 'beijing']:
+    if dataname in ['default', 'faults', 'beijing']:
 
-    #         columns = cat_real_data.columns
-    #         for i, col in enumerate(columns):
-    #             if (cat_real_data[col].dtype == 'int'):
+        columns = cat_real_data.columns
+        for i, col in enumerate(columns):
+            if (cat_real_data[col].dtype == 'int'):
 
-    #                 max_data = cat_real_data[col].max()
-    #                 min_data = cat_real_data[col].min()
+                max_data = cat_real_data[col].max()
+                min_data = cat_real_data[col].min()
 
-    #                 cat_syn_data.loc[cat_syn_data[col] > max_data, col] = max_data
-    #                 cat_syn_data.loc[cat_syn_data[col] < min_data, col] = min_data
+                cat_syn_data.loc[cat_syn_data[col] > max_data, col] = max_data
+                cat_syn_data.loc[cat_syn_data[col] < min_data, col] = min_data
 
-    #                 cat_syn_data_np[:, i] = cat_syn_data[col].astype('int').to_numpy().astype('str')
-                    
-    #     else:
+                cat_syn_data_np[:, i] = cat_syn_data[col].astype('int').to_numpy().astype('str')
+                
     cat_syn_data_np = cat_syn_data.to_numpy().astype('str')
 
     encoder = OneHotEncoder()

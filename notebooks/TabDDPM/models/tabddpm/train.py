@@ -64,11 +64,15 @@ class Trainer:
 
         loss = loss_multi + loss_gauss
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.diffusion.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         return loss_multi, loss_gauss
 
     def run_loop(self):
+        with open(os.path.join(self.model_save_path, f'models_log.txt'), "w") as text_file:
+            text_file.write(f"Start training for {self.steps} steps...\n")
+            
         step = 0
         curr_loss_multi = 0.0
         curr_loss_gauss = 0.0
@@ -114,7 +118,9 @@ class Trainer:
                     torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, 'model.pt'))
   
                 if (step + 1) % 10000 == 0:
-                    torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, f'model_{step+1}.pt'))
+                    with open(os.path.join(self.model_save_path, f'models_log.txt'), "a") as text_file:
+                        text_file.write(f"Done: {step + 1} / {self.steps}. Loss: {mloss + gloss}\n")
+                    # torch.save(self.diffusion._denoise_fn.state_dict(), os.path.join(self.model_save_path, f'model_{step+1}.pt'))
 
             # update_ema(self.ema_model.parameters(), self.diffusion._denoise_fn.parameters())
 

@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 pd.options.mode.chained_assignment = None
 
-def calculate_DCR():
+def calculate_DCR(seed=1234):
     # CONFIG = Config('./config.json')
     dataname = CONFIG.get_arg('dataname')
     model = CONFIG.get_arg('method')
@@ -44,6 +44,12 @@ def calculate_DCR():
     syn_data = pd.read_csv(syn_path)
     real_data = pd.read_csv(real_path)
     test_data = pd.read_csv(test_path)
+
+    # validation dataset
+    _, real_data, _ = train_val_test_split(real_data, 
+                                       cat_columns=np.array(info['column_names'])[info['cat_col_idx']], 
+                                       num_train = real_data.shape[0]-test_data.shape[0], num_test = test_data.shape[0], seed=seed)
+    real_data.reset_index(drop=True, inplace=True)
 
     num_col_idx = info['num_col_idx']
     cat_col_idx = info['cat_col_idx']
@@ -80,7 +86,7 @@ def calculate_DCR():
     num_test_data_np = num_test_data.to_numpy()
     cat_test_data_np = cat_test_data.to_numpy().astype('str')
 
-    encoder = OneHotEncoder()
+    encoder = OneHotEncoder(handle_unknown='ignore')
     encoder.fit(cat_real_data_np)
 
 

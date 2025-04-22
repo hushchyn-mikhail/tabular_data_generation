@@ -401,6 +401,105 @@ def _evaluate_binary_classification(train, test, info):
 
     return best_f1_scores, best_weighted_scores, best_auroc_scores, best_acc_scores, best_avg_scores, avg_roc_auc, std_roc_auc
 
+@ignore_warnings(category=ConvergenceWarning)
+def _evaluate_regression(train, test, info):
+    
+    x_trains, y_trains, x_valid, y_valid, x_test, y_test, regressors = prepare_ml_problem(train, test, info)
+
+    
+    best_r2_scores = []
+    best_ev_scores = []
+    best_mae_scores = []
+    best_rmse_scores = []
+    best_avg_scores = []
+
+    y_trains = np.log(np.clip(y_trains, 1, 20000))
+    y_test = np.log(np.clip(y_test, 1, 20000))
+
+    for model_spec in regressors:
+        model_class = model_spec['class']
+        model_kwargs = model_spec.get('kwargs', dict())
+        model_repr = model_class.__name__
+
+        param_set = list(ParameterGrid(model_kwargs))
+
+        results = []
+        for param in tqdm(param_set):
+            model = model_class(**param)
+            model.fit(x_trains, y_trains)
+            pred = model.predict(x_valid)
+
+            r2 = r2_score(y_valid, pred)
+            explained_variance = explained_variance_score(y_valid, pred)
+            mean_squared = mean_squared_error(y_valid, pred)
+            root_mean_squared = mean_squared_error(y_valid, pred, squared=False)
+            mean_absolute = mean_absolute_error(y_valid, pred)
+
+            results.append(
+                {   
+                    "name": model_repr,
+                    "param": param,
+                    "r2": r2,
+                    "explained_variance": explained_variance,
+                    "mean_squared": mean_squared, 
+                    "mean_absolute": mean_absolute, 
+                    "rmse": root_mean_squared
+                }
+            )
+
+        results = pd.DataFrame(results)
+        # results['avg'] = results.loc[:, ['r2', 'rmse']].mean(axis=1)        
+        best_r2_param = results.param[results.r2.idxmax()]
+        best_ev_param = results.param[results.explained_variance.idxmax()]
+        best_mae_param = results.param[results.mean_absolute.idxmin()]
+        best_rmse_param = results.param[results.rmse.idxmin()]
+        # best_avg_param = results.param[results.avg.idxmax()]
+
+        avg_rmse = results.loc[:, ['rmse']].mean().values[0]
+        std_rmse = results.loc[:, ['rmse']].std().values[0]
+
+        def _calc(best_model):
+            best_scores = []
+            x_train, y_train = x_trains, y_trains
+            
+            best_model.fit(x_train, y_train)
+            pred = best_model.predict(x_test)
+
+            r2 = r2_score(y_test, pred)
+            explained_variance = explained_variance_score(y_test, pred)
+            mean_squared = mean_squared_error(y_test, pred)
+            root_mean_squared = mean_squared_error(y_test, pred, squared=False)
+            mean_absolute = mean_absolute_error(y_test, pred)
+
+            best_scores.append(
+                {   
+                    "name": model_repr,
+                    "param": param,
+                    "r2": r2,
+                    "explained_variance": explained_variance,
+                    "mean_squared": mean_squared, 
+                    "mean_absolute": mean_absolute, 
+                    "rmse": root_mean_squared
+                }
+            )
+
+            return pd.DataFrame(best_scores)
+
+        def _df(dataframe):
+            return {
+                "name": model_repr,
+                "r2": dataframe.r2.values[0].astype(float),
+                "explained_variance": dataframe.explained_variance.values[0].astype(float),
+                "MAE": dataframe.mean_absolute.values[0].astype(float),
+                "RMSE": dataframe.rmse.values[0].astype(float),
+            }
+
+        best_r2_scores.append(_df(_calc(model_class(**best_r2_param))))
+        best_ev_scores.append(_df(_calc(model_class(**best_ev_param))))
+        best_mae_scores.append(_df(_calc(model_class(**best_mae_param))))
+        best_rmse_scores.append(_df(_calc(model_class(**best_rmse_param))))
+
+    return best_r2_scores, best_rmse_scores, avg_rmse, std_rmse
 
 @ignore_warnings(category=ConvergenceWarning)
 def compute_diversity(train, fake):
@@ -426,7 +525,7 @@ def compute_diversity(train, fake):
 _EVALUATORS = {
     'binclass': _evaluate_binary_classification,
     # 'multiclass': _evaluate_multi_classification,
-    # 'regression': _evaluate_regression
+    'regression': _evaluate_regression
 }
 
 def get_evaluator(problem_type):
@@ -470,7 +569,7 @@ def calculate_mle():
     evaluator = get_evaluator(task_type)
 
     if task_type == 'regression':
-        best_r2_scores, best_rmse_scores = evaluator(train, test, info)
+        best_r2_scores, best_rmse_scores, avg_rmse, std_rmse = evaluator(train, test, info)
         
         overall_scores = {}
         for score_name in ['best_r2_scores', 'best_rmse_scores']:
@@ -503,9 +602,17 @@ def calculate_mle():
     with open(save_path, "w") as json_file:
         json.dump(overall_scores, json_file, indent=4, separators=(", ", ": "))
 
-    print(f"ROC - AUC обучения на синтетических данных {model.upper()}: {avg_roc_auc:.3f} ± {std_roc_auc:.3f}")
-
-    return {
-        "ROC - AUC обучения на синтетических данных": avg_roc_auc,
-        "ROC - AUC обучения на синтетических данных, std": std_roc_auc
-    }
+    if task_type == 'regression':
+        print(f"RMSE обучения на синтетических данных {model.upper()}: {avg_rmse:.3f} ± {std_rmse:.3f}")
+    
+        return {
+            "RMSE обучения на синтетических данных": avg_rmse,
+            "RMSE обучения на синтетических данных, std": std_rmse
+        }
+    else:
+        print(f"ROC - AUC обучения на синтетических данных {model.upper()}: {avg_roc_auc:.3f} ± {std_roc_auc:.3f}")
+    
+        return {
+            "ROC - AUC обучения на синтетических данных": avg_roc_auc,
+            "ROC - AUC обучения на синтетических данных, std": std_roc_auc
+        }

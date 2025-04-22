@@ -14,7 +14,7 @@ def compute_loss(results, dataset, metric):
   return 100 - (synth/control * 100)
 
 
-def calculate_base_metrics(make_binary, value):
+def calculate_base_metrics(make_binary, value=None):
     # CONFIG = Config('./config.json')
     dataname = CONFIG.get_arg('dataname')
     model = CONFIG.get_arg('method')

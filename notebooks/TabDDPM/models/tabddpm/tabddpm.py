@@ -16,14 +16,17 @@ from models.tabddpm.sample import sample
 from models.tabddpm.modules import GaussianMultinomialDiffusion, MLPDiffusion
 
 class TabDDPM():
-    def __init__(self, CONFIG):
+    def __init__(self, CONFIG, model_save_path=None):
         self.curr_dir = os.path.dirname(os.path.abspath(__file__))
         self.CONFIG = CONFIG
         self.dataname = self.CONFIG.get_arg('dataname')
         self.device = self.CONFIG.get_arg('device')
 
         self.config_path = f'{self.curr_dir}/configs/{self.dataname}.toml'
-        self.model_save_path = f'{self.curr_dir}/ckpt/{self.dataname}'
+        if model_save_path:
+            self.model_save_path = model_save_path
+        else:
+            self.model_save_path = f'{self.curr_dir}/ckpt/{self.dataname}'
         self.real_data_path = f'data/{self.dataname}'
 
         if not os.path.exists(self.model_save_path):
