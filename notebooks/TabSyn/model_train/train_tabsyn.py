@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import time
 import torch
 
-def get_input_train(dataname = 'adult'):
+def get_input_train(dataname = 'adult', model= 'model'):
     # dataname = args.dataname
 
     curr_dir = 'tabsyn'#os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +25,7 @@ def get_input_train(dataname = 'adult'):
     with open(f'{dataset_dir}/info.json', 'r') as f:
         info = json.load(f)
 
-    ckpt_dir = f'model'
+    ckpt_dir = f'{model}/{dataname}'
     embedding_save_path = f'{ckpt_dir}/train_z.npy'
     train_z = torch.tensor(np.load(embedding_save_path)).float()
 
@@ -161,7 +161,7 @@ class Model(nn.Module):
         loss = self.loss_fn(self.denoise_fn_D, x)
         return loss.mean(-1).mean()
 
-def tabsyn_main(device = 'cuda', dataname = 'adult', num_epochs=5):
+def tabsyn_main(device = 'cuda', dataname = 'adult', model = 'model',num_epochs=5):
     # device = args.device
 
     train_z, _, _, ckpt_path, _ = get_input_train(dataname)
