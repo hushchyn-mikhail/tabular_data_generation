@@ -164,7 +164,7 @@ class Model(nn.Module):
 def tabsyn_main(device = 'cuda', dataname = 'adult', model = 'model',num_epochs=5):
     # device = args.device
 
-    train_z, _, _, ckpt_path, _ = get_input_train(dataname)
+    train_z, _, _, ckpt_path, _ = get_input_train(dataname, model)
 
     print(ckpt_path)
 
