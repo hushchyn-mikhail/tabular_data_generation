@@ -1,17 +1,17 @@
 {
-    "dataname": "beijing",
-    "method": "tabddpm",
+    "dataname": "beijing_ON_QnSC_200k",
+    "method": "tabddpm_ON_QnSC_200k_mult_9",
     "device": "cuda",
     "mode": "train",
     "train": 1,
-    "sample_save_path": "synthetic/beijing/tabddpm.csv",
+    "sample_save_path": "./synthetic/beijing_ON_QnSC_200k/initial_tabddpm_ON_QnSC_200k_mult_9.csv",
     "sigma_scheduller_name": "constant",
     "sigma_value": 0.001,
     "num_noise": 66,
-    "real_path": "synthetic/beijing/real.csv",
-    "test_path": "synthetic/beijing/test.csv",
-    "info_path": "data/beijing/info.json",
-    "save_path": "./synthetic/x/initial_tabddpm_test.csv",
+    "real_path": "./synthetic/beijing_ON_QnSC_200k/initial_real.csv",
+    "test_path": "./synthetic/beijing_ON_QnSC_200k/initial_test.csv",
+    "info_path": "./data/beijing_ON_QnSC_200k/initial_info.json",
+    "save_path": "./synthetic/beijing_ON_QnSC_200k/initial_tabddpm_ON_QnSC_200k_mult_9.csv",
     "num_clusters": 25,
-    "save_cat": 1
+    "save_cat": null
 }

@@ -719,7 +719,7 @@ def categorial_to_OHE(name, do_quantile_and_standart_scale=False, do_quantile_an
             'len_target_prev':len_target_prev
         }
 
-def postprocess_OHE(name, name_copy):
+def postprocess_OHE(name, name_copy, target_cat=True):
     with open(f'./data/{name}/info.json', 'r') as f:
         info = json.load(f)
     
@@ -727,8 +727,8 @@ def postprocess_OHE(name, name_copy):
         info_copy = json.load(f)
     
     initial_info = info.copy()
-    
-    initial_info['task_type'] = 'binclass'
+    if target_cat:
+        initial_info['task_type'] = 'binclass'
     initial_info['column_names'] = info['column_names_initial']
     initial_info['num_col_idx'] = info['num_col_idx_initial']
     initial_info['cat_col_idx'] = info['cat_col_idx_initial']
@@ -741,7 +741,10 @@ def postprocess_OHE(name, name_copy):
     for i in initial_info['cat_col_idx']:
         initial_info['metadata']['columns'][str(i)] = {'sdtype': 'categorical'}
     for i in initial_info['target_col_idx']:
-        initial_info['metadata']['columns'][str(i)] = {'sdtype': 'categorical'}
+        if target_cat:
+            initial_info['metadata']['columns'][str(i)] = {'sdtype': 'categorical'}
+        else:
+            initial_info['metadata']['columns'][str(i)] = {'sdtype': 'numerical', 'computer_representation': 'Float'}
     
     initial_info['column_info'] = info_copy['column_info']
     initial_info['idx_mapping'] = {str(i):i for i in list(range(len(initial_info['column_names'])))}

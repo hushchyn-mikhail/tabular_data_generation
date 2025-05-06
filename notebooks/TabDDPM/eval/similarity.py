@@ -91,11 +91,21 @@ def calculate_similarity():
 
     # Column values distribution
     print('DRAW COLUMN VALUES DISTRIBUTIONS...')
-    columns = new_real_data.columns
-    new_columns = [info['idx_name_mapping'][
-                      str(info['inverse_idx_mapping'][
-                          str(i)])] 
-                    for i in columns]
+    num_col_idx = info['num_col_idx']
+    cat_col_idx = info['cat_col_idx']
+    target_col_idx = info['target_col_idx']
+    
+    task_type = info['task_type']
+    if task_type == 'regression':
+        num_col_idx += target_col_idx
+    else:
+        cat_col_idx += target_col_idx
+    
+    final_cols = [*num_col_idx, *cat_col_idx]
+    final_cols = pd.Series(final_cols).drop_duplicates().values
+    
+    new_columns = [info['idx_name_mapping'][str(i)]
+                    for i in final_cols]
     new_real_data.columns = new_columns
     new_syn_data.columns = new_columns
 
@@ -104,6 +114,8 @@ def calculate_similarity():
 
     for column_name in info['column_names']:
         try:
+            assert len(new_real_data[column_name].unique()) > 50, ''
+            
             fig = get_column_plot(
               real_data=new_real_data,
               synthetic_data=new_syn_data,

@@ -432,7 +432,7 @@ def _evaluate_regression(train, test, info):
             r2 = r2_score(y_valid, pred)
             explained_variance = explained_variance_score(y_valid, pred)
             mean_squared = mean_squared_error(y_valid, pred)
-            root_mean_squared = mean_squared_error(y_valid, pred, squared=False)
+            root_mean_squared = np.sqrt(mean_squared_error(y_valid, pred))
             mean_absolute = mean_absolute_error(y_valid, pred)
 
             results.append(
@@ -468,7 +468,7 @@ def _evaluate_regression(train, test, info):
             r2 = r2_score(y_test, pred)
             explained_variance = explained_variance_score(y_test, pred)
             mean_squared = mean_squared_error(y_test, pred)
-            root_mean_squared = mean_squared_error(y_test, pred, squared=False)
+            root_mean_squared = np.sqrt(mean_squared_error(y_test, pred))
             mean_absolute = mean_absolute_error(y_test, pred)
 
             best_scores.append(
@@ -499,7 +499,7 @@ def _evaluate_regression(train, test, info):
         best_mae_scores.append(_df(_calc(model_class(**best_mae_param))))
         best_rmse_scores.append(_df(_calc(model_class(**best_rmse_param))))
 
-    return best_r2_scores, best_rmse_scores, avg_rmse, std_rmse
+    return best_r2_scores, best_rmse_scores, best_rmse_scores[0]['RMSE'], results.loc[:, ['rmse']].std().values[0]
 
 @ignore_warnings(category=ConvergenceWarning)
 def compute_diversity(train, fake):

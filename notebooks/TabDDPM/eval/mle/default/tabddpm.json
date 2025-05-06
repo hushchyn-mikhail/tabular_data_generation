@@ -1,42 +1,42 @@
 {
     "best_f1_scores": {
         "XGBClassifier": {
-            "binary_f1": 0.4343720491029273, 
-            "roc_auc": 0.7587212452683305, 
-            "weighted_f1": 0.5334726761622843, 
-            "accuracy": 0.8003333333333333
+            "binary_f1": 0.46564885496183206, 
+            "roc_auc": 0.7647985394913843, 
+            "weighted_f1": 0.5597314884468506, 
+            "accuracy": 0.8133333333333334
         }
     }, 
     "best_weighted_scores": {
         "XGBClassifier": {
-            "binary_f1": 0.4343720491029273, 
-            "roc_auc": 0.7587212452683305, 
-            "weighted_f1": 0.5334726761622843, 
-            "accuracy": 0.8003333333333333
+            "binary_f1": 0.46564885496183206, 
+            "roc_auc": 0.7647985394913843, 
+            "weighted_f1": 0.5597314884468506, 
+            "accuracy": 0.8133333333333334
         }
     }, 
     "best_auroc_scores": {
         "XGBClassifier": {
-            "binary_f1": 0.46872082166199813, 
-            "roc_auc": 0.7636755910298512, 
-            "weighted_f1": 0.561453128542957, 
-            "accuracy": 0.8103333333333333
+            "binary_f1": 0.4585365853658537, 
+            "roc_auc": 0.7701569406187945, 
+            "weighted_f1": 0.5545488417698248, 
+            "accuracy": 0.815
         }
     }, 
     "best_acc_scores": {
         "XGBClassifier": {
-            "binary_f1": 0.437440305635148, 
-            "roc_auc": 0.7615495059441248, 
-            "weighted_f1": 0.5363724419283384, 
-            "accuracy": 0.8036666666666666
+            "binary_f1": 0.4716073147256978, 
+            "roc_auc": 0.7751966562039588, 
+            "weighted_f1": 0.5649002391900326, 
+            "accuracy": 0.817
         }
     }, 
     "best_avg_scores": {
         "XGBClassifier": {
-            "binary_f1": 0.46872082166199813, 
-            "roc_auc": 0.7636755910298512, 
-            "weighted_f1": 0.561453128542957, 
-            "accuracy": 0.8103333333333333
+            "binary_f1": 0.4716073147256978, 
+            "roc_auc": 0.7751966562039588, 
+            "weighted_f1": 0.5649002391900326, 
+            "accuracy": 0.817
         }
     }
 }

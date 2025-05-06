@@ -1,0 +1,42 @@
+{
+    "best_f1_scores": {
+        "XGBClassifier": {
+            "binary_f1": 0.8036529680365296, 
+            "roc_auc": 0.9252834851715448, 
+            "weighted_f1": 0.836319016758158, 
+            "accuracy": 0.8643533123028391
+        }
+    }, 
+    "best_weighted_scores": {
+        "XGBClassifier": {
+            "binary_f1": 0.8036529680365296, 
+            "roc_auc": 0.9252834851715448, 
+            "weighted_f1": 0.836319016758158, 
+            "accuracy": 0.8643533123028391
+        }
+    }, 
+    "best_auroc_scores": {
+        "XGBClassifier": {
+            "binary_f1": 0.8036529680365296, 
+            "roc_auc": 0.9252834851715448, 
+            "weighted_f1": 0.836319016758158, 
+            "accuracy": 0.8643533123028391
+        }
+    }, 
+    "best_acc_scores": {
+        "XGBClassifier": {
+            "binary_f1": 0.8036529680365296, 
+            "roc_auc": 0.9252834851715448, 
+            "weighted_f1": 0.836319016758158, 
+            "accuracy": 0.8643533123028391
+        }
+    }, 
+    "best_avg_scores": {
+        "XGBClassifier": {
+            "binary_f1": 0.8036529680365296, 
+            "roc_auc": 0.9252834851715448, 
+            "weighted_f1": 0.836319016758158, 
+            "accuracy": 0.8643533123028391
+        }
+    }
+}
