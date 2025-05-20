@@ -147,7 +147,7 @@ class Load_Process_Dataset():
 
                 with open(test_path, 'r') as f:
                     lines = f.readlines()[1:]
-                    test_save_path = f'data/{name}/test.data'
+                    test_save_path = f'data/{self.name}/test.data'
                     if not os.path.exists(test_save_path):
                         with open(test_save_path, 'a') as f1:     
                             for line in lines:
