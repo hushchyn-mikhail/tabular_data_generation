@@ -21,14 +21,21 @@ class Load_Process_Dataset():
         self.name = name
 
     def download_from_uci(self):
-
+        NAME_URL_DICT_UCI = {
+    'adult': 'https://archive.ics.uci.edu/static/public/2/adult.zip',
+    'default': 'https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip',
+    'magic': 'https://archive.ics.uci.edu/static/public/159/magic+gamma+telescope.zip',
+    'shoppers': 'https://archive.ics.uci.edu/static/public/468/online+shoppers+purchasing+intention+dataset.zip',
+    'beijing': 'https://archive.ics.uci.edu/static/public/381/beijing+pm2+5+data.zip',
+    'news': 'https://archive.ics.uci.edu/static/public/332/online+news+popularity.zip'
+}
         print(f'Start processing dataset {self.name} from UCI.')
         save_dir = f'data/{self.name}'
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
 
-            url = 'https://archive.ics.uci.edu/static/public/2/adult.zip'
+            url = NAME_URL_DICT_UCI[self.name]
             request.urlretrieve(url, f'{save_dir}/{self.name}.zip')
             print(f'Finish downloading dataset from {url}, data has been saved to {save_dir}.')
 
@@ -73,31 +80,54 @@ class Load_Process_Dataset():
         return idx_mapping, inverse_idx_mapping, idx_name_mapping
 
 
+    def train_val_test_split(self, data_df, cat_columns, num_train = 0, num_test = 0):
+        total_num = data_df.shape[0]
+        idx = np.arange(total_num)
+
+
+        seed = 1234
+
+        while True:
+            np.random.seed(seed)
+            np.random.shuffle(idx)
+
+            train_idx = idx[:num_train]
+            test_idx = idx[-num_test:]
+
+
+            train_df = data_df.loc[train_idx]
+            test_df = data_df.loc[test_idx]
+
+
+
+            flag = 0
+            for i in cat_columns:
+                if len(set(train_df[i])) != len(set(data_df[i])):
+                    flag = 1
+                    break
+
+            if flag == 0:
+                break
+            else:
+                seed += 1
+            
+        return train_df, test_df, seed    
+
     def process_data(self):
         with open(f'data/Info/{self.name}.json', 'r') as f:
             info = json.load(f)
+
         data_path = info['data_path']
-        data_df = pd.read_csv(data_path, header = None)
+        if info['file_type'] == 'csv':
+            data_df = pd.read_csv(data_path, header = info['header'])
+
+        elif info['file_type'] == 'xls':
+            data_df = pd.read_excel(data_path, sheet_name='Data', header=1)
+            data_df = data_df.drop('ID', axis=1)
 
         num_data = data_df.shape[0]
 
-        column_names = [
-            "age",
-            "workclass",
-            "fnlwgt",
-            "education",
-            "education.num",
-            "marital.status",
-            "occupation",
-            "relationship",
-            "race",
-            "sex",
-            "capital.gain",
-            "capital.loss",
-            "hours.per.week",
-            "native.country",
-            "income"
-        ]
+        column_names = info['column_names'] if info['column_names'] else data_df.columns.tolist()
 
         num_col_idx = info['num_col_idx']
         cat_col_idx = info['cat_col_idx']
@@ -110,19 +140,30 @@ class Load_Process_Dataset():
         target_columns = [column_names[i] for i in target_col_idx]
 
         # if testing data is given
-        test_path = info['test_path']
+        if info['test_path']:
 
-        with open(test_path, 'r') as f:
-            lines = f.readlines()[1:]
-            test_save_path = f'data/{self.name}/test.data'
-            if not os.path.exists(test_save_path):
-                with open(test_save_path, 'a') as f1:
-                    for line in lines:
-                        save_line = line.strip('\n').strip('.')
-                        f1.write(f'{save_line}\n')
+                # if testing data is given
+                test_path = info['test_path']
 
-        test_df = pd.read_csv(test_save_path, header = None)
-        train_df = data_df
+                with open(test_path, 'r') as f:
+                    lines = f.readlines()[1:]
+                    test_save_path = f'data/{name}/test.data'
+                    if not os.path.exists(test_save_path):
+                        with open(test_save_path, 'a') as f1:     
+                            for line in lines:
+                                save_line = line.strip('\n').strip('.')
+                                f1.write(f'{save_line}\n')
+
+                test_df = pd.read_csv(test_save_path, header = None)
+                train_df = data_df
+
+        else:  
+            # Train/ Test Split, 90% Training, 10% Testing (Validation set will be selected from Training set)
+
+            num_train = int(num_data*0.9)
+            num_test = num_data - num_train
+
+            train_df, test_df, seed = self.train_val_test_split(data_df, cat_columns, num_train, num_test)
 
 
         train_df.columns = range(len(train_df.columns))
