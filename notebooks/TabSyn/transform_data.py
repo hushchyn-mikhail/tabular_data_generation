@@ -431,16 +431,38 @@ def make_dataset(
     X_num = {} if os.path.exists(os.path.join(data_path, 'X_num_train.npy')) else None
     y = {} if os.path.exists(os.path.join(data_path, 'y_train.npy')) else None
 
-    for split in ['train', 'test']:
-        X_num_t, X_cat_t, y_t = read_pure_data(data_path, split)
-        if X_num is not None:
-            X_num[split] = X_num_t
-        if X_cat is not None:
-            if concat:
-                X_cat_t = concat_y_to_X(X_cat_t, y_t)
-            X_cat[split] = X_cat_t
-        if y is not None:
-            y[split] = y_t
+    if task_type == 'binclass' or task_type == 'multiclass':
+        X_cat = {} if os.path.exists(os.path.join(data_path, 'X_cat_train.npy'))  else None
+        X_num = {} if os.path.exists(os.path.join(data_path, 'X_num_train.npy')) else None
+        y = {} if os.path.exists(os.path.join(data_path, 'y_train.npy')) else None
+
+        for split in ['train', 'test']:
+            X_num_t, X_cat_t, y_t = read_pure_data(data_path, split)
+            if X_num is not None:
+                X_num[split] = X_num_t
+            if X_cat is not None:
+                if concat:
+                    X_cat_t = concat_y_to_X(X_cat_t, y_t)
+                X_cat[split] = X_cat_t  
+            if y is not None:
+                y[split] = y_t
+    else:
+        # regression
+        X_cat = {} if os.path.exists(os.path.join(data_path, 'X_cat_train.npy')) else None
+        X_num = {} if os.path.exists(os.path.join(data_path, 'X_num_train.npy')) else None
+        y = {} if os.path.exists(os.path.join(data_path, 'y_train.npy')) else None
+
+        for split in ['train', 'test']:
+            X_num_t, X_cat_t, y_t = read_pure_data(data_path, split)
+
+            if X_num is not None:
+                if concat:
+                    X_num_t = concat_y_to_X(X_num_t, y_t)
+                X_num[split] = X_num_t
+            if X_cat is not None:
+                X_cat[split] = X_cat_t
+            if y is not None:
+                y[split] = y_t
 
     # with open(f'data/Info/{self.name}.json', 'r') as f:
     #     info = json.load(f)
