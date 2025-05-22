@@ -283,10 +283,10 @@ class Load_Process_Dataset():
                 metadata['columns'][i]['sdtype'] = 'numerical'
                 metadata['columns'][i]['computer_representation'] = 'Float'
 
-            else:
-                for i in target_col_idx:
-                    metadata['columns'][i] = {}
-                    metadata['columns'][i]['sdtype'] = 'categorical'
+        else:
+            for i in target_col_idx:
+                metadata['columns'][i] = {}
+                metadata['columns'][i]['sdtype'] = 'categorical'
 
         info['metadata'] = metadata
 
