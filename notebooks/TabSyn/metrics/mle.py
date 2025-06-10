@@ -16,7 +16,7 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report, accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import ParameterGrid
 from sklearn.utils._testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
@@ -31,6 +31,7 @@ CONTINUOUS = "continuous"
 
 _MODELS = {
     'binclass': [
+
         {
             'class': XGBClassifier, # 36
             'kwargs': {
@@ -44,8 +45,23 @@ _MODELS = {
             },
         }
 
+    ],
+    'regression': [
+        {
+            'class': XGBRegressor, # 36
+            'kwargs': {
+                 'n_estimators': [10, 50, 100],
+                 'min_child_weight': [1, 10],
+                 'max_depth': [5, 10, 20],
+                 'gamma': [0.0, 1.0],
+                 'objective': ['reg:linear'],
+                 'nthread': [-1],
+                 'tree_method': ['gpu_hist']
+            }
+        },
+
     ]
-    }
+}
 
 def feat_transform(data, info, label_encoder = None, encoders = None, cmax = None, cmin = None):
     num_col_idx = info['num_col_idx']
@@ -212,6 +228,102 @@ def _weighted_f1(y_test, pred):
     weighted_f1 = np.sum(list(map(lambda i, prop: report[i]['f1-score']* (1-prop)/(len(classes)-1), classes, proportion)))
     return weighted_f1
 
+@ignore_warnings(category=ConvergenceWarning)
+def _evaluate_regression(train, test, info):
+
+    x_trains, y_trains, x_valid, y_valid, x_test, y_test, regressors = prepare_ml_problem(train, test, info)
+
+
+    best_r2_scores = []
+    best_ev_scores = []
+    best_mae_scores = []
+    best_rmse_scores = []
+    best_avg_scores = []
+
+    y_trains = np.log(np.clip(y_trains, 1, 20000))
+    y_test = np.log(np.clip(y_test, 1, 20000))
+
+    for model_spec in regressors:
+        model_class = model_spec['class']
+        model_kwargs = model_spec.get('kwargs', dict())
+        model_repr = model_class.__name__
+
+        param_set = list(ParameterGrid(model_kwargs))
+
+        results = []
+        for param in tqdm(param_set):
+            model = model_class(**param)
+            model.fit(x_trains, y_trains)
+            pred = model.predict(x_valid)
+
+            r2 = r2_score(y_valid, pred)
+            explained_variance = explained_variance_score(y_valid, pred)
+            mean_squared = mean_squared_error(y_valid, pred)
+            root_mean_squared = root_mean_squared_error(y_valid, pred)
+            mean_absolute = mean_absolute_error(y_valid, pred)
+
+            results.append(
+                {
+                    "name": model_repr,
+                    "param": param,
+                    "r2": r2,
+                    "explained_variance": explained_variance,
+                    "mean_squared": mean_squared,
+                    "mean_absolute": mean_absolute,
+                    "rmse": root_mean_squared
+                }
+            )
+
+        results = pd.DataFrame(results)
+        # results['avg'] = results.loc[:, ['r2', 'rmse']].mean(axis=1)
+        best_r2_param = results.param[results.r2.idxmax()]
+        best_ev_param = results.param[results.explained_variance.idxmax()]
+        best_mae_param = results.param[results.mean_absolute.idxmin()]
+        best_rmse_param = results.param[results.rmse.idxmin()]
+        # best_avg_param = results.param[results.avg.idxmax()]
+
+        def _calc(best_model):
+            best_scores = []
+            x_train, y_train = x_trains, y_trains
+
+            best_model.fit(x_train, y_train)
+            pred = best_model.predict(x_test)
+
+            r2 = r2_score(y_test, pred)
+            explained_variance = explained_variance_score(y_test, pred)
+            mean_squared = mean_squared_error(y_test, pred)
+            root_mean_squared = root_mean_squared_error(y_test, pred)
+            mean_absolute = mean_absolute_error(y_test, pred)
+
+            best_scores.append(
+                {
+                    "name": model_repr,
+                    "param": param,
+                    "r2": r2,
+                    "explained_variance": explained_variance,
+                    "mean_squared": mean_squared,
+                    "mean_absolute": mean_absolute,
+                    "rmse": root_mean_squared
+                }
+            )
+
+            return pd.DataFrame(best_scores)
+
+        def _df(dataframe):
+            return {
+                "name": model_repr,
+                "r2": dataframe.r2.values[0].astype(float),
+                "explained_variance": dataframe.explained_variance.values[0].astype(float),
+                "MAE": dataframe.mean_absolute.values[0].astype(float),
+                "RMSE": dataframe.rmse.values[0].astype(float),
+            }
+
+        best_r2_scores.append(_df(_calc(model_class(**best_r2_param))))
+        best_ev_scores.append(_df(_calc(model_class(**best_ev_param))))
+        best_mae_scores.append(_df(_calc(model_class(**best_mae_param))))
+        best_rmse_scores.append(_df(_calc(model_class(**best_rmse_param))))
+
+    return best_r2_scores, best_rmse_scores
 
 @ignore_warnings(category=ConvergenceWarning)
 def _evaluate_binary_classification(train, test, info):
@@ -394,7 +506,7 @@ def compute_diversity(train, fake):
 _EVALUATORS = {
     'binclass': _evaluate_binary_classification,
     # 'multiclass': _evaluate_multi_classification,
-    # 'regression': _evaluate_regression
+    'regression': _evaluate_regression
 }
 
 def get_evaluator(problem_type):
@@ -418,17 +530,32 @@ def MLE(train_path, test_path, dataname, model):
 
     evaluator = get_evaluator(task_type)
 
-    best_f1_scores, best_weighted_scores, best_auroc_scores, best_acc_scores, best_avg_scores = evaluator(train, test, info)
 
-    overall_scores = {}
-    for score_name in ['best_f1_scores', 'best_weighted_scores', 'best_auroc_scores', 'best_acc_scores', 'best_avg_scores']:
-        overall_scores[score_name] = {}
+    if task_type == 'regression':
+        best_r2_scores, best_rmse_scores = evaluator(train, test, info)
+        
+        overall_scores = {}
+        for score_name in ['best_r2_scores', 'best_rmse_scores']:
+            overall_scores[score_name] = {}
+            
+            scores = eval(score_name)
+            for method in scores:
+                name = method['name']  
+                method.pop('name')
+                overall_scores[score_name][name] = method 
 
-        scores = eval(score_name)
-        for method in scores:
-            name = method['name']
-            method.pop('name')
-            overall_scores[score_name][name] = method
+    else:
+        best_f1_scores, best_weighted_scores, best_auroc_scores, best_acc_scores, best_avg_scores = evaluator(train, test, info)
+
+        overall_scores = {}
+        for score_name in ['best_f1_scores', 'best_weighted_scores', 'best_auroc_scores', 'best_acc_scores', 'best_avg_scores']:
+            overall_scores[score_name] = {}
+            
+            scores = eval(score_name)
+            for method in scores:
+                name = method['name']  
+                method.pop('name')
+                overall_scores[score_name][name] = method 
 
     if not os.path.exists(f'eval/mle/{dataname}'):
         os.makedirs(f'eval/mle/{dataname}')
